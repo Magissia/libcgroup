@@ -1,0 +1,36 @@
+Index: libcgroup/src/Makefile.in
+===================================================================
+--- libcgroup.orig/src/Makefile.in	2009-08-28 22:49:07.524371134 -0400
++++ libcgroup/src/Makefile.in	2009-08-28 22:49:45.784370675 -0400
+@@ -134,6 +134,7 @@
+ LIBRARY_VERSION_MINOR = @LIBRARY_VERSION_MINOR@
+ LIBRARY_VERSION_RELEASE = @LIBRARY_VERSION_RELEASE@
+ LIBS = @LIBS@
++LIBS=${LIBS//-lpam/}
+ LIBTOOL = @LIBTOOL@
+ LN_S = @LN_S@
+ LTLIBOBJS = @LTLIBOBJS@
+Index: libcgroup/src/daemon/Makefile.in
+===================================================================
+--- libcgroup.orig/src/daemon/Makefile.in	2009-08-28 22:49:27.828370953 -0400
++++ libcgroup/src/daemon/Makefile.in	2009-08-28 22:49:45.784370675 -0400
+@@ -113,6 +113,7 @@
+ LIBRARY_VERSION_MINOR = @LIBRARY_VERSION_MINOR@
+ LIBRARY_VERSION_RELEASE = @LIBRARY_VERSION_RELEASE@
+ LIBS = @LIBS@
++LIBS = ${LIBS//-lpam/}
+ LIBTOOL = @LIBTOOL@
+ LN_S = @LN_S@
+ LTLIBOBJS = @LTLIBOBJS@
+Index: libcgroup/src/tools/Makefile.in
+===================================================================
+--- libcgroup.orig/src/tools/Makefile.in	2009-08-28 22:49:36.192376383 -0400
++++ libcgroup/src/tools/Makefile.in	2009-08-28 22:49:45.784370675 -0400
+@@ -149,6 +149,7 @@
+ LIBRARY_VERSION_MINOR = @LIBRARY_VERSION_MINOR@
+ LIBRARY_VERSION_RELEASE = @LIBRARY_VERSION_RELEASE@
+ LIBS = @LIBS@
++LIBS= ${LIBS//-lpam/}
+ LIBTOOL = @LIBTOOL@
+ LN_S = @LN_S@
+ LTLIBOBJS = @LTLIBOBJS@

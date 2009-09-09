@@ -1,0 +1,16 @@
+Index: libcgroup/samples/cgconfig.conf
+===================================================================
+--- libcgroup.orig/samples/cgconfig.conf	2009-08-25 18:57:09.194240159 -0400
++++ libcgroup/samples/cgconfig.conf	2009-08-25 18:57:18.350237575 -0400
+@@ -42,7 +42,7 @@
+ #	}
+ #}
+ #
+-#mount {
+-#	cpu = /mnt/cgroups/cpu;
+-#	cpuacct = /mnt/cgroups/cpuacct;
+-#}
++mount {
++	cpu = /mnt/cgroups/cpu;
++	cpuacct = /mnt/cgroups/cpuacct;
++}

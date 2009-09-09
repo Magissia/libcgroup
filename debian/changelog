@@ -1,0 +1,5 @@
+libcgroup (0.34-1) unstable; urgency=low
+
+  * Initial release (Closes: #536167)
+
+ -- Jon Bernard <jbernard@debian.org>  Tue, 08 Sep 2009 22:40:43 -0400

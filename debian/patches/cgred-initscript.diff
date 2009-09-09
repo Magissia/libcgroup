@@ -1,0 +1,87 @@
+Index: libcgroup/scripts/init.d/cgred.in
+===================================================================
+--- libcgroup.orig/scripts/init.d/cgred.in	2009-10-01 16:50:20.221496552 -0400
++++ libcgroup/scripts/init.d/cgred.in	2009-10-01 16:52:15.413493798 -0400
+@@ -22,11 +22,13 @@
+ # pidfile: /var/run/cgred.pid
+ #
+ ### BEGIN INIT INFO
+-# Provides:		cgrulesengd
++# Provides:		cgred
+ # Required-Start:	$local_fs $syslog $cgconfig
+ # Required-Stop:	$local_fs $syslog
+ # Should-Start:		
+ # Should-Stop:		
++# Default-Start:        2 3 4 5
++# Default-Stop:         0 1 6
+ # Short-Description:	start and stop the cgroups rules engine daemon
+ # Description:		CGroup Rules Engine is a tool for automatically using \
+ #			cgroups to classify processes
+@@ -39,12 +41,11 @@
+ [ -x $CGRED_BIN ] || exit 1
+ 
+ # Source function library & LSB routines
+-. /etc/rc.d/init.d/functions
+ . /lib/lsb/init-functions
+ 
+ # Read in configuration options.
+-if [ -f "/etc/sysconfig/cgred.conf" ] ; then
+-	. /etc/sysconfig/cgred.conf
++if [ -f "/etc/default/cgred.conf" ] ; then
++	. /etc/default/cgred.conf
+ 	OPTIONS="$NODAEMON $LOG"
+ 	if [ -n "$LOG_FILE" ]; then
+ 		OPTIONS="$OPTIONS --log-file=$LOG_FILE"
+@@ -63,14 +64,14 @@
+ start()
+ {
+ 	echo $"Starting CGroup Rules Engine Daemon..."
+-	if [ -f "/var/lock/subsys/$servicename" ] ; then
++	if [ -f "/var/lock/$servicename" ] ; then
+ 		log_failure_msg "$servicename is already running with PID `cat ${pidfile}`"
+ 		return 1
+ 	fi
+-	daemon --check $servicename --pidfile $pidfile $CGRED_BIN $OPTIONS
++	start_daemon -p $pidfile $CGRED_BIN $OPTIONS
+ 	RETVAL=$?
+ 	echo
+-	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/$servicename
++	[ $RETVAL -eq 0 ] && touch /var/lock/$servicename
+ 	echo "`pidof $processname`" > $pidfile
+ }
+ 
+@@ -81,7 +82,7 @@
+ 	RETVAL=$?
+ 	echo
+ 	if [ $RETVAL -eq 0 ] ; then
+-		rm -f /var/lock/subsys/$servicename
++		rm -f /var/lock/$servicename
+ 		rm -f $pidfile
+ 	fi
+ 	log_success_msg
+@@ -96,21 +97,21 @@
+ 		stop
+ 		;;
+ 	status)
+-		status -p $pidfile $processname
++		status_of_proc -p $pidfile $processname
+ 		RETVAL=$?
+ 		;;
+-	restart)
++	restart|force-reload)
+ 		stop
+ 		start
+ 		;;
+ 	condrestart)
+-		if [ -f /var/lock/subsys/$servicename ] ; then
++		if [ -f /var/lock/$servicename ] ; then
+ 			stop
+ 			start
+ 		fi
+ 		;;
+ 	reload|flash)
+-		if [ -f /var/lock/subsys/$servicename ] ; then
++		if [ -f /var/lock/$servicename ] ; then
+ 			echo $"Reloading rules configuration..."
+ 			kill -s 12 `cat ${pidfile}`
+ 			RETVAL=$?

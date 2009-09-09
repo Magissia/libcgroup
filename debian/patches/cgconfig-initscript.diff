@@ -1,0 +1,70 @@
+Index: libcgroup/scripts/init.d/cgconfig.in
+===================================================================
+--- libcgroup.orig/scripts/init.d/cgconfig.in	2009-08-24 23:48:54.126240544 -0400
++++ libcgroup/scripts/init.d/cgconfig.in	2009-08-24 23:53:15.778237495 -0400
+@@ -25,6 +25,8 @@
+ # Required-Stop:
+ # Should-Start:
+ # Should-Stop:
++# Default-Start:        2 3 4 5
++# Default-Stop:         0 1 6
+ # Short-Description:    start and stop the WLM configuration
+ # Description:          This script allows us to create a default configuration
+ ### END INIT INFO
+@@ -72,7 +74,7 @@
+ 
+ start() {
+         echo -n "Starting cgconfig service: "
+-	if [ -f /var/lock/subsys/$servicename ]
++	if [ -f /var/lock/$servicename ]
+         then
+             log_warning_msg "lock file already exists"
+             return
+@@ -138,11 +140,11 @@
+             done
+         done
+ 	
+-        touch /var/lock/subsys/$servicename
++        touch /var/lock/$servicename
+         retval=$?
+         if [ $retval -ne 0 ]
+         then
+-            log_failure_msg "Failed to touch " /var/lock/subsys/$servicename
++            log_failure_msg "Failed to touch " /var/lock/$servicename
+             return $retval
+         fi
+         log_success_msg
+@@ -182,7 +184,7 @@
+     echo -n "Stopping cgconfig service: "
+     move_all_to_init_class
+     umount_fs
+-    rm -f /var/lock/subsys/$servicename
++    rm -f /var/lock/$servicename
+     log_success_msg
+ }
+ 
+@@ -219,7 +221,7 @@
+         common
+         start;
+         ;;
+-    'restart')
++    'restart'|'force-reload')
+         common
+ 	stop
+         start
+@@ -230,13 +232,13 @@
+         start
+         ;;
+     'condrestart')
+-        if [ -f /var/lock/subsys/$servicename ] ; then
++        if [ -f /var/lock/$servicename ] ; then
+             stop
+             start
+         fi
+         ;;
+     'status')
+-        if [ -f /var/lock/subsys/$servicename ] ; then
++        if [ -f /var/lock/$servicename ] ; then
+             echo "Running"
+         else
+             echo "Stopped"
