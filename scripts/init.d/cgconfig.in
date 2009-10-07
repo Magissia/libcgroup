@@ -1,0 +1,248 @@
+#!/bin/bash
+#
+# Start/Stop the workload manager
+#
+# Copyright IBM Corporation. 2008
+#
+# Authors:     Balbir Singh <balbir@linux.vnet.ibm.com>
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of version 2.1 of the GNU Lesser General Public License
+# as published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it would be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#
+# cgconfig Control Groups Configuration Startup
+# chkconfig: - 5 95
+# description: This script runs the cgconfigparser utility to parse and setup
+#              the control group filesystem. It uses /etc/cgconfig.conf
+#              and parses the configuration specified in there.
+
+### BEGIN INIT INFO
+# Provides:             cgconfig
+# Required-Start:
+# Required-Stop:
+# Should-Start:
+# Should-Stop:
+# Short-Description:    start and stop the WLM configuration
+# Description:          This script allows us to create a default configuration
+### END INIT INFO
+
+# get correct location of binaries from configure
+prefix=@prefix@;exec_prefix=@exec_prefix@;sbindir=@sbindir@
+CGCONFIGPARSER_BIN=$sbindir/cgconfigparser
+MOUNTS_FILE=/proc/mounts
+PROC_CGROUPS_FILE=/proc/cgroups
+CGROUP_FS=cgroup
+CONFIG_FILE=/etc/cgconfig.conf
+
+# support multiple mount points
+declare -a MOUNTPOINT
+declare -a MOUNTOPTS
+maxindex=0
+servicename=cgconfig
+
+#
+# Source LSB routines
+#
+. /lib/lsb/init-functions
+
+parse_mounts() {
+    while read name mountpt fs opts other
+    do
+        if echo $name | grep -q $CGROUP_FS
+        then
+            maxindex=$(($maxindex+1))
+            MOUNTPOINT[$maxindex]=$mountpt
+            MOUNTOPTS[$maxindex]=$opts
+        fi
+    done < $MOUNTS_FILE
+
+    return 0;
+}
+
+umount_fs() {
+        for i in `seq 1 $maxindex`
+        do
+                umount ${MOUNTPOINT[$i]}
+                rmdir ${MOUNTPOINT[$i]}
+        done
+}
+
+start() {
+        echo -n "Starting cgconfig service: "
+	if [ -f /var/lock/subsys/$servicename ]
+        then
+            log_warning_msg "lock file already exists"
+            return
+        fi
+
+        if [ $? -eq 0 ]
+        then
+                $CGCONFIGPARSER_BIN -l $CONFIG_FILE
+                retval=$?
+                if [ $retval -ne 0 ]
+                then
+                    log_failure_msg "Failed to parse " $CONFIG_FILE
+                    return $retval
+                fi
+        fi
+
+        declare defaultcgroup
+
+        if [ -f /etc/cgrules.conf ]
+        then
+            read user ctrl defaultcgroup <<< \
+                `grep -m1 ^\* /etc/cgrules.conf`
+            if [[ -n $defaultcgroup && $defaultcgroup = "*" ]]
+            then
+                log_warning_msg "/etc/cgrules.conf incorrect"
+                log_warning_msg "Overriding it"
+                defaultcgroup=
+            fi
+        fi
+
+        if [ -z $defaultcgroup ]
+        then
+            defaultcgroup=sysdefault/
+        fi
+        #
+        # Create a default class for tasks to return back to
+        #
+        parse_mounts
+        for i in `seq 1 $maxindex`
+        do
+            #
+            # Ignore if directory already exists
+            #
+            mkdir ${MOUNTPOINT[$i]}/$defaultcgroup 2> /dev/null
+            chmod a+rw ${MOUNTPOINT[$i]}/$defaultcgroup/tasks
+            #
+            # special rule for cpusets
+            #
+            echo ${MOUNTOPTS[$i]} | grep -q -w cpuset
+            if [ $? -eq 0 ]
+            then
+                cat ${MOUNTPOINT[$i]}/cpuset.cpus > \
+                    ${MOUNTPOINT[$i]}/$defaultcgroup/cpuset.cpus
+                cat ${MOUNTPOINT[$i]}/cpuset.mems > \
+                    ${MOUNTPOINT[$i]}/$defaultcgroup/cpuset.mems
+            fi
+            #
+            # classify everything to default cgroup
+            #
+            for j in `ps --no-headers -eL o tid`
+            do
+                echo $j > ${MOUNTPOINT[$i]}/$defaultcgroup/tasks 2>/dev/null
+            done
+        done
+	
+        touch /var/lock/subsys/$servicename
+        retval=$?
+        if [ $retval -ne 0 ]
+        then
+            log_failure_msg "Failed to touch " /var/lock/subsys/$servicename
+            return $retval
+        fi
+        log_success_msg
+        return 0
+}
+
+move_all_to_init_class() {
+    for i in `seq 1 $maxindex`
+    do
+        cd ${MOUNTPOINT[$i]}
+        cat /proc/mounts | grep -wq ${MOUNTPOINT[$i]}
+        if [ $? -ne 0 ]
+        then
+            log_failure_msg "resource control filesystem not mounted"
+            exit 1
+        fi
+
+        for i in `find . -depth -type d`
+        do
+            case $i in
+            '.')
+                ;;
+            *)
+                class=${i#./*}
+                #log_progress_msg "Removing class $class"
+                sed -nu p < ./$i/tasks > tasks
+                rmdir $i
+                ;;
+            esac
+        done
+        cd - > /dev/null
+    done
+}
+
+
+stop() {
+    echo -n "Stopping cgconfig service: "
+    move_all_to_init_class
+    umount_fs
+    rm -f /var/lock/subsys/$servicename
+    log_success_msg
+}
+
+trapped() {
+    #
+    # Do nothing
+    #
+    true
+}
+
+usage() {
+    echo "$0 <start|stop|restart|condrestart|status>"
+    exit 1
+}
+
+common() {
+    #
+    # main script work done here
+    #
+    trap "trapped ABRT" ABRT
+    trap "trapped QUIT" QUIT
+    trap "trapped TERM" TERM
+    trap "trapped INT"   INT
+
+    parse_mounts
+}
+
+case $1 in
+    'stop')
+        common
+        stop;
+        ;;
+    'start')
+        common
+        start;
+        ;;
+    'restart')
+        common
+	stop
+        start
+        ;;
+    'reload')
+        common
+	stop
+        start
+        ;;
+    'condrestart')
+        if [ -f /var/lock/subsys/$servicename ] ; then
+            stop
+            start
+        fi
+        ;;
+    'status')
+        if [ -f /var/lock/subsys/$servicename ] ; then
+            echo "Running"
+        else
+            echo "Stopped"
+        fi
+	;;
+    *)
+        usage
+        ;;
+esac
