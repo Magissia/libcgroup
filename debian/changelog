@@ -1,3 +1,10 @@
+libcgroup (0.34-2) unstable; urgency=low
+
+  * Fix initscript dependencies (Closes: #549480) - thanks to Petter
+    Reinholdtsen <pere@hungry.com>
+
+ -- Jon Bernard <jbernard@debian.org>  Wed, 28 Oct 2009 14:31:34 -0400
+
 libcgroup (0.34-1) unstable; urgency=low
 
   * Initial release (Closes: #536167)
