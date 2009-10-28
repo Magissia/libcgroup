@@ -1,17 +1,23 @@
-Index: libcgroup/scripts/init.d/cgconfig.in
+Index: b/scripts/init.d/cgconfig.in
 ===================================================================
---- libcgroup.orig/scripts/init.d/cgconfig.in	2009-08-24 23:48:54.126240544 -0400
-+++ libcgroup/scripts/init.d/cgconfig.in	2009-08-24 23:53:15.778237495 -0400
-@@ -25,6 +25,8 @@
- # Required-Stop:
- # Should-Start:
- # Should-Stop:
+--- a/scripts/init.d/cgconfig.in
++++ b/scripts/init.d/cgconfig.in
+@@ -21,10 +21,10 @@
+ 
+ ### BEGIN INIT INFO
+ # Provides:             cgconfig
+-# Required-Start:
+-# Required-Stop:
+-# Should-Start:
+-# Should-Stop:
++# Required-Start:       $remote_fs $syslog
++# Required-Stop:        $remote_fs $syslog
 +# Default-Start:        2 3 4 5
 +# Default-Stop:         0 1 6
  # Short-Description:    start and stop the WLM configuration
  # Description:          This script allows us to create a default configuration
  ### END INIT INFO
-@@ -72,7 +74,7 @@
+@@ -72,7 +72,7 @@ umount_fs() {
  
  start() {
          echo -n "Starting cgconfig service: "
@@ -20,7 +26,7 @@ Index: libcgroup/scripts/init.d/cgconfig.in
          then
              log_warning_msg "lock file already exists"
              return
-@@ -138,11 +140,11 @@
+@@ -138,11 +138,11 @@ start() {
              done
          done
  	
@@ -34,7 +40,7 @@ Index: libcgroup/scripts/init.d/cgconfig.in
              return $retval
          fi
          log_success_msg
-@@ -182,7 +184,7 @@
+@@ -182,7 +182,7 @@ stop() {
      echo -n "Stopping cgconfig service: "
      move_all_to_init_class
      umount_fs
@@ -43,7 +49,7 @@ Index: libcgroup/scripts/init.d/cgconfig.in
      log_success_msg
  }
  
-@@ -219,7 +221,7 @@
+@@ -219,7 +219,7 @@ case $1 in
          common
          start;
          ;;
@@ -52,7 +58,7 @@ Index: libcgroup/scripts/init.d/cgconfig.in
          common
  	stop
          start
-@@ -230,13 +232,13 @@
+@@ -230,13 +230,13 @@ case $1 in
          start
          ;;
      'condrestart')
