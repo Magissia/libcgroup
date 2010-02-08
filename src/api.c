@@ -51,12 +51,6 @@
 #include <assert.h>
 #include <linux/un.h>
 
-#ifndef PACKAGE_VERSION
-#define PACKAGE_VERSION 0.01
-#endif
-
-#define VERSION(ver)	#ver
-
 /*
  * The errno which happend the last time (have to be thread specific)
  */
@@ -69,14 +63,6 @@ __thread char errtext[MAXLEN];
 
 /* Task command name length */
 #define TASK_COMM_LEN 16
-
-/*
- * Remember to bump this up for major API changes.
- */
-const static char cg_version[] = VERSION(PACKAGE_VERSION);
-
-struct cg_mount_table_s cg_mount_table[CG_CONTROLLER_MAX];
-static pthread_rwlock_t cg_mount_table_lock = PTHREAD_RWLOCK_INITIALIZER;
 
 /* Check if cgroup_init has been called or not. */
 static int cgroup_initialized;
@@ -92,6 +78,9 @@ static struct cgroup_rule_list trl;
 
 /* Lock for the list of rules (rl) */
 static pthread_rwlock_t rl_lock = PTHREAD_RWLOCK_INITIALIZER;
+
+/* Namespace */
+__thread char *cg_namespace_table[CG_CONTROLLER_MAX];
 
 char *cgroup_strerror_codes[] = {
 	"Cgroup is not compiled in",
@@ -109,15 +98,20 @@ char *cgroup_strerror_codes[] = {
 	"Cgroup, creation of controller failed",
 	"Cgroup operation failed",
 	"Cgroup not initialized",
-	"Cgroup trying to set value for control that does not exist",
+	"Cgroup, requested group parameter does not exist",
 	"Cgroup generic error",
 	"Cgroup values are not equal",
 	"Cgroup controllers are different",
 	"Cgroup parsing failed",
 	"Cgroup, rules file does not exist",
 	"Cgroup mounting failed",
-	"The config file can not be opend",
+	"The config file can not be opened",
+	"Sentinel"
 	"End of File or iterator",
+	"Failed to parse config file",
+	"Have multiple paths for the same namespace",
+	"Controller in namespace does not exist",
+	"Cannot have mount and namespace keyword in the same configuration file",
 };
 
 static int cg_chown_file(FTS *fts, FTSENT *ent, uid_t owner, gid_t group)
@@ -602,7 +596,7 @@ destroyrule:
 	cgroup_free_rule(newrule);
 
 parsefail:
-	ret = ECGROUPPARSEFAIL;
+	ret = ECGRULESPARSEFAIL;
 
 close:
 	fclose(fp);
@@ -822,7 +816,13 @@ static char *cg_build_path_locked(char *name, char *path, char *type)
 		 * XX: Change to snprintf once you figure what n should be
 		 */
 		if (strcmp(cg_mount_table[i].name, type) == 0) {
-			sprintf(path, "%s/", cg_mount_table[i].path);
+			if (cg_namespace_table[i]) {
+				sprintf(path, "%s/%s/", cg_mount_table[i].path,
+							cg_namespace_table[i]);
+			} else {
+				sprintf(path, "%s/", cg_mount_table[i].path);
+			}
+
 			if (name) {
 				char *tmp;
 				tmp = strdup(path);
@@ -1356,60 +1356,78 @@ err:
 /**
  * Find the parent of the specified directory. It returns the parent (the
  * parent is usually name/.. unless name is a mount point.
+ *
+ * @param cgroup The cgroup
+ * @param parent Output, name of parent's group (if the group has parent) or
+ *	NULL, if the provided cgroup is the root group and has no parent.
+ *	Caller is responsible to free the returned string!
+ * @return 0 on success, >0 on error.
  */
-char *cgroup_find_parent(char *name)
+int cgroup_find_parent(struct cgroup *cgroup, char **parent)
 {
-	char child[FILENAME_MAX];
-	char *parent = NULL;
+	char child_path[FILENAME_MAX];
+	char *parent_path = NULL;
 	struct stat stat_child, stat_parent;
-	char *type = NULL;
-	char *dir = NULL;
+	char *controller = NULL;
+	char *dir = NULL, *parent_dir = NULL;
+	int ret = 0;
+
+	*parent = NULL;
 
 	pthread_rwlock_rdlock(&cg_mount_table_lock);
-	type = cg_mount_table[0].name;
-	if (!cg_build_path_locked(name, child, type)) {
+	controller = cgroup->controller[0]->name;
+	if (!cg_build_path_locked(cgroup->name, child_path, controller)) {
 		pthread_rwlock_unlock(&cg_mount_table_lock);
-		return NULL;
+		return ECGFAIL;
 	}
 	pthread_rwlock_unlock(&cg_mount_table_lock);
 
-	cgroup_dbg("path is %s\n", child);
-	dir = dirname(child);
-	cgroup_dbg("directory name is %s\n", dir);
+	cgroup_dbg("path is %s\n", child_path);
 
-	if (asprintf(&parent, "%s/..", dir) < 0)
-		return NULL;
+	if (asprintf(&parent_path, "%s/..", child_path) < 0)
+		return ECGFAIL;
 
-	cgroup_dbg("parent's name is %s\n", parent);
+	cgroup_dbg("parent's name is %s\n", parent_path);
 
-	if (stat(dir, &stat_child) < 0)
+	if (stat(child_path, &stat_child) < 0) {
+		last_errno = errno;
+		ret = ECGOTHER;
 		goto free_parent;
+	}
 
-	if (stat(parent, &stat_parent) < 0)
+	if (stat(parent_path, &stat_parent) < 0) {
+		last_errno = errno;
+		ret = ECGOTHER;
 		goto free_parent;
+	}
 
 	/*
 	 * Is the specified "name" a mount point?
 	 */
 	if (stat_parent.st_dev != stat_child.st_dev) {
-		cgroup_dbg("parent is a mount point\n");
-		strcpy(parent, ".");
+		*parent = NULL;
+		ret = 0;
+		cgroup_dbg("Parent is on different device\n");
 	} else {
-		dir = strdup(name);
-		if (!dir)
+		dir = strdup(cgroup->name);
+		cgroup_dbg("group name is %s\n", dir);
+		if (!dir) {
+			ret = ECGFAIL;
 			goto free_parent;
-		dir = dirname(dir);
-		if (strcmp(dir, ".") == 0)
-			strcpy(parent, "..");
-		else
-			strcpy(parent, dir);
+		}
+
+		parent_dir = dirname(dir);
+		cgroup_dbg("parent's group name is %s\n", parent_dir);
+		*parent = strdup(parent_dir);
+		free(dir);
+
+		if (*parent == NULL)
+			ret = ECGFAIL;
 	}
 
-	return parent;
-
 free_parent:
-	free(parent);
-	return NULL;
+	free(parent_path);
+	return ret;
 }
 
 /**
@@ -1427,9 +1445,17 @@ int cgroup_create_cgroup_from_parent(struct cgroup *cgroup,
 	if (!cgroup_initialized)
 		return ECGROUPNOTINITIALIZED;
 
-	parent = cgroup_find_parent(cgroup->name);
-	if (!parent)
+	ret = cgroup_find_parent(cgroup, &parent);
+	if (ret)
 		return ret;
+
+	if (parent == NULL) {
+		/*
+		 * The group to create is root group!
+		 * TODO: find better error code?
+		 */
+		return ECGFAIL;
+	}
 
 	cgroup_dbg("parent is %s\n", parent);
 	parent_cgroup = cgroup_new_cgroup(parent);
@@ -1455,6 +1481,183 @@ err_nomem:
 	return ret;
 }
 
+/**
+ * Move all processes from one task file to another.
+ * @param input_tasks Pre-opened file to read tasks from.
+ * @param output_tasks Pre-opened file to write tasks to.
+ * @return 0 on succes, >0 on error.
+ */
+static int cg_move_task_files(FILE *input_tasks, FILE *output_tasks)
+{
+	int tids;
+	int ret = 0;
+
+	while (!feof(input_tasks)) {
+		ret = fscanf(input_tasks, "%d", &tids);
+		if (ret == EOF || ret == 0) {
+			ret = 0;
+			break;
+		}
+		if (ret < 0)
+			break;
+
+		ret = fprintf(output_tasks, "%d", tids);
+		if (ret < 0)
+			break;
+
+		/*
+		 * Flush the file, we need only one process per write() call.
+		 */
+		ret = fflush(output_tasks);
+		if (ret < 0)
+			break;
+	}
+
+	if (ret < 0) {
+		last_errno = errno;
+		return ECGOTHER;
+	}
+	return 0;
+}
+
+/**
+ * Remove one cgroup from specific controller. The function  moves all
+ * processes from it to given target group.
+ *
+ * The function succeeds if the group to remove is already removed - when
+ * cgroup_delete_cgroup is called with group with two controllers mounted
+ * to the same hierarchy, this function is called once for each of these
+ * controllers. And during the second call the group is already removed...
+ *
+ * @param cgroup_name Name of the group to remove.
+ * @param controller  Name of the controller.
+ * @param target_tasks Opened tasks file of the target group, where all
+ *	processes should be moved.
+ * @param flags Flag indicating whether the errors from task
+ * 	migration should be ignored (CGROUP_DELETE_IGNORE_MIGRATION) or not (0).
+ * @returns 0 on success, >0 on error.
+ */
+static int cg_delete_cgroup_controller(char *cgroup_name, char *controller,
+		FILE *target_tasks, int flags)
+{
+	FILE *delete_tasks;
+	char path[FILENAME_MAX];
+	int ret = 0;
+
+	cgroup_dbg("Removing group %s:%s\n", controller, cgroup_name);
+
+	/*
+	 * Open tasks file of the group to delete.
+	 */
+	if (!cg_build_path(cgroup_name, path, controller))
+		return ECGROUPSUBSYSNOTMOUNTED;
+	strncat(path, "tasks", sizeof(path) - strlen(path));
+
+	delete_tasks = fopen(path, "r");
+	if (delete_tasks) {
+		ret = cg_move_task_files(delete_tasks, target_tasks);
+		fclose(delete_tasks);
+	} else {
+		/*
+		 * Can't open the tasks file. If the file does not exist, ignore
+		 * it - the group has been already removed.
+		 */
+		if (errno != ENOENT) {
+			last_errno = errno;
+			ret = ECGOTHER;
+		}
+	}
+
+	if (ret != 0 && !(flags & CGFLAG_DELETE_IGNORE_MIGRATION))
+		return ret;
+
+	/*
+	 * Remove the group.
+	 */
+	if (!cg_build_path(cgroup_name, path, controller))
+		return ECGROUPSUBSYSNOTMOUNTED;
+
+	ret = rmdir(path);
+	if (ret != 0 && errno != ENOENT) {
+		last_errno = errno;
+		return ECGOTHER;
+	}
+
+	return 0;
+}
+
+/**
+ * Recursively delete one control group. Moves all tasks from the group and
+ * its subgroups to given task file.
+ *
+ * @param cgroup_name The group to delete.
+ * @param controller The controller, where to delete.
+ * @param target_tasks Opened file, where all tasks should be moved.
+ * @param flags Combination of CGFLAG_DELETE_* flags. The function assumes
+ *	that CGFLAG_DELETE_RECURSIVE is set.
+ * @param delete_root Whether the group itself should be removed(1) or not(0).
+ */
+static int cg_delete_cgroup_controller_recursive(char *cgroup_name,
+		char *controller, FILE *target_tasks, int flags,
+		int delete_root)
+{
+	int ret;
+	void *handle;
+	struct cgroup_file_info info;
+	int level, group_len;
+	char child_name[FILENAME_MAX];
+
+	cgroup_dbg("Recursively removing %s:%s\n", controller, cgroup_name);
+
+	ret = cgroup_walk_tree_begin(controller, cgroup_name, 0, &handle,
+			&info, &level);
+
+	if (ret == 0)
+		ret = cgroup_walk_tree_set_flags(&handle,
+				CGROUP_WALK_TYPE_POST_DIR);
+
+	if (ret != 0) {
+		cgroup_walk_tree_end(&handle);
+		return ret;
+	}
+
+	group_len = strlen(info.full_path);
+
+	/*
+	 * Skip the root group, it will be handled explicitly at the end.
+	 */
+	ret = cgroup_walk_tree_next(0, &handle, &info, level);
+
+	while (ret == 0) {
+		if (info.type == CGROUP_FILE_TYPE_DIR && info.depth > 0) {
+			snprintf(child_name, sizeof(child_name), "%s/%s",
+					cgroup_name,
+					info.full_path + group_len);
+
+			ret = cg_delete_cgroup_controller(child_name,
+					controller, target_tasks,
+					flags);
+			if (ret != 0)
+				break;
+		}
+
+		ret = cgroup_walk_tree_next(0, &handle, &info, level);
+	}
+	if (ret == ECGEOF) {
+		/*
+		 * Iteration finished successfully, remove the root group.
+		 */
+		ret = 0;
+		if (delete_root)
+			ret = cg_delete_cgroup_controller(cgroup_name,
+					controller, target_tasks,
+					flags);
+	}
+
+	cgroup_walk_tree_end(&handle);
+	return ret;
+}
+
 /** cgroup_delete cgroup deletes a control group.
  *  struct cgroup *cgroup takes the group which is to be deleted.
  *
@@ -1462,11 +1665,18 @@ err_nomem:
  */
 int cgroup_delete_cgroup(struct cgroup *cgroup, int ignore_migration)
 {
-	FILE *delete_tasks = NULL, *base_tasks = NULL;
-	int tids;
-	char path[FILENAME_MAX];
-	int error = ECGROUPNOTALLOWED;
+	int flags = ignore_migration ? CGFLAG_DELETE_IGNORE_MIGRATION : 0;
+	return cgroup_delete_cgroup_ext(cgroup, flags);
+}
+
+int cgroup_delete_cgroup_ext(struct cgroup *cgroup, int flags)
+{
+	FILE *parent_tasks = NULL;
+	char parent_path[FILENAME_MAX];
+	int first_error = 0, first_errno = 0;
 	int i, ret;
+	char *parent_name = NULL;
+	int delete_group = 1;
 
 	if (!cgroup_initialized)
 		return ECGROUPNOTINITIALIZED;
@@ -1479,63 +1689,82 @@ int cgroup_delete_cgroup(struct cgroup *cgroup, int ignore_migration)
 			return ECGROUPSUBSYSNOTMOUNTED;
 	}
 
+	ret = cgroup_find_parent(cgroup, &parent_name);
+	if (ret)
+		return ret;
+
+	if (parent_name == NULL) {
+		/*
+		 * Root group is being deleted.
+		 */
+		if (flags & CGFLAG_DELETE_RECURSIVE) {
+			/*
+			 * Move all tasks to the root group and do not delete
+			 * it afterwards.
+			 */
+			parent_name = strdup(".");
+			if (parent_name == NULL)
+				return ECGFAIL;
+			delete_group = 0;
+		} else
+			/*
+			 *  TODO: should it succeed?
+			 */
+			return 0;
+	}
+
+	/*
+	 * Remove the group from all controllers.
+	 */
 	for (i = 0; i < cgroup->index; i++) {
-		if (!cg_build_path(cgroup->name, path,
+		ret = 0;
+
+		if (!cg_build_path(parent_name, parent_path,
 					cgroup->controller[i]->name))
 			continue;
-		strncat(path, "../tasks", sizeof(path) - strlen(path));
 
-		base_tasks = fopen(path, "w");
-		if (!base_tasks)
-			goto open_err;
+		strncat(parent_path, "/tasks", sizeof(parent_path)
+				- strlen(parent_path));
 
-		if (!cg_build_path(cgroup->name, path,
-					cgroup->controller[i]->name)) {
-			fclose(base_tasks);
-			continue;
-		}
-
-		strncat(path, "tasks", sizeof(path) - strlen(path));
-
-		delete_tasks = fopen(path, "r");
-		if (!delete_tasks) {
-			fclose(base_tasks);
-			goto open_err;
-		}
-
-		while (!feof(delete_tasks)) {
-			ret = fscanf(delete_tasks, "%d", &tids);
-			if (ret == EOF || ret < 1)
-				break;
-			fprintf(base_tasks, "%d", tids);
-		}
-
-		fclose(delete_tasks);
-		fclose(base_tasks);
-
-		if (!cg_build_path(cgroup->name, path,
-					cgroup->controller[i]->name))
-			continue;
-		error = rmdir(path);
-		last_errno = errno;
-	}
-open_err:
-	if (ignore_migration) {
-		for (i = 0; i < cgroup->index; i++) {
-			if (!cg_build_path(cgroup->name, path,
-						cgroup->controller[i]->name))
-				continue;
-			error = rmdir(path);
-			if (error < 0 && errno == ENOENT) {
-				last_errno = errno;
-				error = 0;
+		parent_tasks = fopen(parent_path, "w");
+		if (!parent_tasks) {
+			last_errno = errno;
+			ret = ECGOTHER;
+		} else {
+			if (flags & CGFLAG_DELETE_RECURSIVE) {
+				ret = cg_delete_cgroup_controller_recursive(
+						cgroup->name,
+						cgroup->controller[i]->name,
+						parent_tasks, flags,
+						delete_group);
+			} else {
+				ret = cg_delete_cgroup_controller(cgroup->name,
+						cgroup->controller[i]->name,
+						parent_tasks, flags);
 			}
+			fclose(parent_tasks);
+		}
+
+		/*
+		 * If any of the controller delete fails, remember the first
+		 * error code, but continue with next controller and try remove
+		 * the group from all of them.
+		 */
+		if (ret != 0 && first_error == 0) {
+			first_errno = last_errno;
+			first_error = ret;
 		}
 	}
-	if (error)
-		return ECGOTHER;
 
-	return error;
+	/*
+	 * Restore the last_errno to the first errno from
+	 * cg_delete_cgroup_controller[_ext].
+	 */
+	if (first_errno != 0)
+		last_errno = first_errno;
+
+	free(parent_name);
+	return first_error;
 }
 
 /*
@@ -1557,7 +1786,7 @@ static int cg_rd_ctrl_file(char *subsys, char *cgroup, char *file, char **value)
 	if (!ctrl_file)
 		return ECGROUPVALUENOTEXIST;
 
-	*value = malloc(CG_VALUE_MAX);
+	*value = calloc(CG_VALUE_MAX, 1);
 	if (!*value) {
 		last_errno = errno;
 		return ECGOTHER;
@@ -1567,10 +1796,14 @@ static int cg_rd_ctrl_file(char *subsys, char *cgroup, char *file, char **value)
 	 * using %as crashes when we try to read from files like
 	 * memory.stat
 	 */
-	ret = fscanf(ctrl_file, "%s", *value);
-	if (ret == 0 || ret == EOF) {
+	ret = fread(*value, 1, CG_VALUE_MAX-1, ctrl_file);
+	if (ret < 0) {
 		free(*value);
 		*value = NULL;
+	} else {
+		/* remove trailing \n */
+		if (ret > 0 && (*value)[ret-1] == '\n')
+			(*value)[ret-1] = '\0';
 	}
 
 	fclose(ctrl_file);
@@ -2148,7 +2381,7 @@ int cgroup_reload_cached_rules()
 	if (ret) {
 		cgroup_dbg("Error parsing configuration file \"%s\": %d.\n",
 			CGRULES_CONF_FILE, ret);
-		ret = ECGROUPPARSEFAIL;
+		ret = ECGRULESPARSEFAIL;
 		goto finished;
 	}
 		
@@ -2274,12 +2507,8 @@ cleanup_path:
 
 char *cgroup_strerror(int code)
 {
-	assert((code >= ECGROUPNOTCOMPILED) && (code < ECGSENTINEL));
 	if (code == ECGOTHER) {
-		snprintf(errtext, MAXLEN, "%s, error message: %s",
-			cgroup_strerror_codes[code % ECGROUPNOTCOMPILED],
-			strerror(cgroup_get_last_errno()));
-		return errtext;
+		return strerror_r(cgroup_get_last_errno(), errtext, MAXLEN);
 	}
 	return cgroup_strerror_codes[code % ECGROUPNOTCOMPILED];
 }
@@ -3002,4 +3231,71 @@ int cgroup_get_subsys_mount_point(char *controller, char **mount_point)
 out_exit:
 	pthread_rwlock_unlock(&cg_mount_table_lock);
 	return ret;
+}
+
+
+int cgroup_get_all_controller_end(void **handle)
+{
+	FILE *proc_cgroup = (FILE *) *handle;
+
+	if (!proc_cgroup)
+		return ECGINVAL;
+
+	fclose(proc_cgroup);
+	*handle = NULL;
+
+	return 0;
+}
+
+
+int cgroup_get_all_controller_next(void **handle, struct controller_data *info)
+{
+	FILE *proc_cgroup = (FILE *) *handle;
+	int err = 0;
+	int hierarchy, num_cgroups, enabled;
+	char subsys_name[FILENAME_MAX];
+
+	if (!proc_cgroup)
+		return ECGINVAL;
+
+	if (!info)
+		return ECGINVAL;
+
+	err = fscanf(proc_cgroup, "%s %d %d %d\n", subsys_name,
+			&hierarchy, &num_cgroups, &enabled);
+
+	if (err != 4)
+		return ECGEOF;
+
+	strncpy(info->name, subsys_name, FILENAME_MAX);
+	info->name[FILENAME_MAX-1] = '\0';
+	info->hierarchy = hierarchy;
+	info->num_cgroups = num_cgroups;
+	info->enabled = enabled;
+
+	return 0;
+}
+
+
+int cgroup_get_all_controller_begin(void **handle, struct controller_data *info)
+{
+	FILE *proc_cgroup = NULL;
+	char buf[FILENAME_MAX];
+
+	if (!info)
+		return ECGINVAL;
+
+	proc_cgroup = fopen("/proc/cgroups", "r");
+	if (!proc_cgroup) {
+		last_errno = errno;
+		return ECGOTHER;
+	}
+
+	if (!fgets(buf, FILENAME_MAX, proc_cgroup)) {
+		last_errno = errno;
+		return ECGOTHER;
+	}
+	*handle = proc_cgroup;
+
+	return cgroup_get_all_controller_next(handle, info);
 }
