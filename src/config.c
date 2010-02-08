@@ -59,8 +59,11 @@ extern int yyparse(void);
  * cgroup_table_index -> Where in the cgroup_table we are.
  */
 static struct cg_mount_table_s config_mount_table[CG_CONTROLLER_MAX];
+static struct cg_mount_table_s config_namespace_table[CG_CONTROLLER_MAX];
 static int config_table_index;
+static int namespace_table_index;
 static pthread_rwlock_t config_table_lock = PTHREAD_RWLOCK_INITIALIZER;
+static pthread_rwlock_t namespace_table_lock = PTHREAD_RWLOCK_INITIALIZER;
 static struct cgroup config_cgroup_table[MAX_CGROUPS];
 int cgroup_table_index;
 
@@ -352,6 +355,36 @@ void cgroup_config_cleanup_mount_table(void)
 }
 
 /*
+ * The moment we have found the controller's information
+ * insert it into the config_mount_table.
+ */
+int cgroup_config_insert_into_namespace_table(char *name, char *nspath)
+{
+	if (namespace_table_index >= CG_CONTROLLER_MAX)
+		return 0;
+
+	pthread_rwlock_wrlock(&namespace_table_lock);
+
+	strcpy(config_namespace_table[namespace_table_index].name, name);
+	strcpy(config_namespace_table[namespace_table_index].path, nspath);
+	namespace_table_index++;
+
+	pthread_rwlock_unlock(&namespace_table_lock);
+	free(name);
+	free(nspath);
+	return 1;
+}
+
+/*
+ * Cleanup all the data from the config_mount_table
+ */
+void cgroup_config_cleanup_namespace_table(void)
+{
+	memset(&config_namespace_table, 0,
+			sizeof(struct cg_mount_table_s) * CG_CONTROLLER_MAX);
+}
+
+/*
  * Start mounting the mount table.
  */
 int cgroup_config_mount_fs()
@@ -449,6 +482,169 @@ int cgroup_config_unmount_controllers(void)
 	return 0;
 }
 
+static int config_validate_namespaces(void)
+{
+	int i;
+	char *namespace = NULL;
+	char *mount_path = NULL;
+	int j, subsys_count;
+	int error = 0;
+
+	pthread_rwlock_wrlock(&cg_mount_table_lock);
+	for (i = 0; cg_mount_table[i].name[0] != '\0'; i++) {
+		/*
+		 * If we get the path in the first run, then we
+		 * are good, else we will need to go for two
+		 * loops. This should be optimized in the future
+		 */
+		mount_path = cg_mount_table[i].path;
+
+		if (!mount_path) {
+			last_errno = errno;
+			error = ECGOTHER;
+			goto out_error;
+		}
+
+		/*
+		 * Setup the namespace for the subsystems having the same
+		 * mount point.
+		 */
+		if (!cg_namespace_table[i]) {
+			namespace = NULL;
+		} else {
+			namespace = cg_namespace_table[i];
+			if (!namespace) {
+				last_errno = errno;
+				error = ECGOTHER;
+				goto out_error;
+			}
+		}
+
+		/*
+		 * We want to handle all the subsytems that are mounted
+		 * together. So initialize j to start from the next point in
+		 * the mount table.
+		 */
+
+		j = i + 1;
+
+		/*
+		 * Search through the mount table to locate which subsystems
+		 * are mounted together.
+		 */
+		while (!strncmp(cg_mount_table[j].path, mount_path, FILENAME_MAX)) {
+			if (!namespace && cg_namespace_table[j]) {
+				/* In case namespace is not setup, set it up */
+				namespace = cg_namespace_table[j];
+				if (!namespace) {
+					last_errno = errno;
+					error = ECGOTHER;
+					goto out_error;
+				}
+			}
+			j++;
+		}
+		subsys_count = j;
+
+		/*
+		 * If there is no namespace, then continue on :)
+		 */
+
+		if (!namespace) {
+			i = subsys_count -  1;
+			continue;
+		}
+
+		/*
+		 * Validate/setup the namespace
+		 * If no namespace is specified, copy the namespace we have
+		 * stored. If a namespace is specified, confirm if it is
+		 * the same as we have stored. If not, we fail.
+		 */
+		for (j = i; j < subsys_count; j++) {
+			if (!cg_namespace_table[j]) {
+				cg_namespace_table[j] = strdup(namespace);
+				if (!cg_namespace_table[j]) {
+					last_errno = errno;
+					error = ECGOTHER;
+					goto out_error;
+				}
+			}
+			else if (strcmp(namespace, cg_namespace_table[j])) {
+				error = ECGNAMESPACEPATHS;
+				goto out_error;
+			}
+		}
+		/* i++ in the for loop will increment it */
+		i = subsys_count - 1;
+	}
+out_error:
+	pthread_rwlock_unlock(&cg_mount_table_lock);
+	return error;
+}
+
+/*
+ * Should always be called after cgroup_init() has been called
+ *
+ * NOT to be called outside the library. Is handled internally
+ * when we are looking to  load namespace configurations.
+ *
+ * This function will order the namespace table in the same
+ * fashion as how the mou table is setup.
+ *
+ * Also it will setup namespaces for all the controllers mounted.
+ * In case a controller does not have a namespace assigned to it, it
+ * will set it to null.
+ */
+static int config_order_namespace_table(void)
+{
+	int i = 0;
+	int error = 0;
+
+	pthread_rwlock_wrlock(&cg_mount_table_lock);
+	/*
+	 * Set everything to NULL
+	 */
+	for (i = 0; i < CG_CONTROLLER_MAX; i++)
+		cg_namespace_table[i] = NULL;
+
+	memset(cg_namespace_table, 0, CG_CONTROLLER_MAX * sizeof(cg_namespace_table[0]));
+
+	/*
+	 * Now fill up the namespace table looking at the table we have
+	 * otherwise.
+	 */
+
+	for (i = 0; i < namespace_table_index; i++) {
+		int j;
+		int flag = 0;
+		for (j = 0; cg_mount_table[j].name[0] != '\0'; j++) {
+			if (strncmp(config_namespace_table[i].name,
+				cg_mount_table[j].name, FILENAME_MAX) == 0) {
+
+				flag = 1;
+
+				if (cg_namespace_table[j]) {
+					error = ECGNAMESPACEPATHS;
+					goto error_out;
+				}
+
+				cg_namespace_table[j] = strdup(config_namespace_table[i].path);
+				if (!cg_namespace_table[j]) {
+					last_errno = errno;
+					error = ECGOTHER;
+					goto error_out;
+				}
+			}
+		}
+		if (!flag)
+			return ECGNAMESPACECONTROLLER;
+	}
+error_out:
+	pthread_rwlock_unlock(&cg_mount_table_lock);
+	return error;
+}
+
 /*
  * The main function which does all the setup of the data structures
  * and finally creates the cgroups
@@ -456,6 +652,8 @@ int cgroup_config_unmount_controllers(void)
 int cgroup_config_load_config(const char *pathname)
 {
 	int error;
+	int namespace_enabled = 0;
+	int mount_enabled = 0;
 	yyin = fopen(pathname, "r");
 
 	if (!yyin) {
@@ -467,14 +665,42 @@ int cgroup_config_load_config(const char *pathname)
 	if (yyparse() != 0) {
 		cgroup_dbg("Failed to parse file %s\n", pathname);
 		fclose(yyin);
-		return ECGROUPPARSEFAIL;
+		return ECGCONFIGPARSEFAIL;
 	}
+
+	namespace_enabled = (config_namespace_table[0].name[0] != '\0');
+	mount_enabled = (config_mount_table[0].name[0] != '\0');
+
+	/*
+	 * The configuration should have either namespace or mount.
+	 * Not both and not none.
+	 */
+	if (namespace_enabled == mount_enabled)
+		return ECGMOUNTNAMESPACE;
+
+	/*
+	 * We do not allow both mount and namespace sections in the
+	 * same configuration file. So test for that
+	 */
 
 	error = cgroup_config_mount_fs();
 	if (error)
 		goto err_mnt;
 
 	error = cgroup_init();
+	if (error)
+		goto err_mnt;
+
+	/*
+	 * The very first thing is to sort the namespace table. If we fail
+	 * we unmount everything and get out.
+	 */
+
+	error = config_order_namespace_table();
+	if (error)
+		goto err_mnt;
+
+	error = config_validate_namespaces();
 	if (error)
 		goto err_mnt;
 
@@ -493,105 +719,27 @@ err_mnt:
 	return error;
 }
 
-static int cgroup_cleanup_cgroup_controller_files(struct cgroup_file_info info,
-						char *root_path, char *ctrl)
-{
-	void *task_handle;
-	pid_t pid;
-	char *rel_path = NULL;
-	int error;
-	int ret;
-
-
-	rel_path = info.full_path + strlen(root_path) - 1;
-
-	if (!strncmp(rel_path, "/", strlen(rel_path)))
-		return 0;
-
-	error = cgroup_get_task_begin(rel_path, ctrl,
-					&task_handle, &pid);
-
-	if (error && error != ECGEOF)
-		return error;
-
-	while (error != ECGEOF) {
-		ret = cgroup_attach_task_pid(NULL, pid);
-
-		if (ret) {
-			cgroup_get_task_end(&task_handle);
-			return ret;
-		}
-		error = cgroup_get_task_next(&task_handle, &pid);
-
-		if (error && error != ECGEOF) {
-			cgroup_get_task_end(&task_handle);
-			return error;
-		}
-	}
-
-	cgroup_get_task_end(&task_handle);
-
-	error = rmdir(info.full_path);
-	if (error) {
-		last_errno = errno;
-		return ECGOTHER;
-	}
-
-	return 0;
-}
-
 static int cgroup_config_unload_controller(struct cgroup_mount_point mount_info)
 {
-	struct cgroup_file_info info;
-	void *tree_handle;
-	int lvl;
-	int ret = 0, error;
-	char *root_path = NULL;
+	int ret, error;
+	struct cgroup *cgroup = NULL;
+	struct cgroup_controller *cgc = NULL;
 
-	error = cgroup_walk_tree_begin(mount_info.name, "/", 0, &tree_handle,
-							&info, &lvl);
+	cgroup = cgroup_new_cgroup(".");
+	if (cgroup == NULL)
+		return ECGFAIL;
 
-	if (error && error != ECGEOF)
-		return error;
-
-	root_path = strdup(info.full_path);
-
-	if (!root_path) {
-		cgroup_walk_tree_end(&tree_handle);
-		last_errno = errno;
-		return ECGOTHER;
-	}
-
-	ret = cgroup_walk_tree_set_flags(&tree_handle,
-				CGROUP_WALK_TYPE_POST_DIR);
-
-	if (ret) {
-		cgroup_walk_tree_end(&tree_handle);
+	cgc = cgroup_add_controller(cgroup, mount_info.name);
+	if (cgc == NULL) {
+		ret = ECGFAIL;
 		goto out_error;
 	}
 
-	while (error != ECGEOF) {
-		if (info.type == CGROUP_FILE_TYPE_DIR) {
-			ret = cgroup_cleanup_cgroup_controller_files(info,
-						root_path, mount_info.name);
+	ret = cgroup_delete_cgroup_ext(cgroup, CGFLAG_DELETE_RECURSIVE);
+	if (ret != 0)
+		goto out_error;
 
-			if (ret) {
-				cgroup_walk_tree_end(&tree_handle);
-				goto out_error;
-			}
-		}
-
-		error = cgroup_walk_tree_next(0, &tree_handle, &info, lvl);
-
-		if (error && error != ECGEOF) {
-			ret = error;
-			cgroup_walk_tree_end(&tree_handle);
-			goto out_error;
-		}
-	}
-	cgroup_walk_tree_end(&tree_handle);
 	error = umount(mount_info.path);
-
 	if (error) {
 		last_errno = errno;
 		ret = ECGOTHER;
@@ -599,14 +747,14 @@ static int cgroup_config_unload_controller(struct cgroup_mount_point mount_info)
 	}
 
 	error = rmdir(mount_info.path);
-
 	if (error) {
 		last_errno = errno;
 		ret = ECGOTHER;
 	}
 
 out_error:
-	free(root_path);
+	if (cgroup)
+		cgroup_free(&cgroup);
 	return ret;
 }
 

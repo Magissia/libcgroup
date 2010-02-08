@@ -22,6 +22,7 @@ __BEGIN_DECLS
 #include <fts.h>
 #include <libcgroup.h>
 #include <limits.h>
+#include <pthread.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -113,7 +114,20 @@ char *cg_build_path(char *name, char *path, char *type);
 int cgroup_get_uid_gid_from_procfs(pid_t pid, uid_t *euid, gid_t *egid);
 int cgroup_get_procname_from_procfs(pid_t pid, char **procname);
 int cg_mkdir_p(const char *path);
+struct cgroup *create_cgroup_from_name_value_pairs(const char *name,
+		struct control_value *name_value, int nv_number);
 
+/*
+ * Main mounting structures
+ */
+struct cg_mount_table_s cg_mount_table[CG_CONTROLLER_MAX];
+static pthread_rwlock_t cg_mount_table_lock = PTHREAD_RWLOCK_INITIALIZER;
+
+/*
+ * config related structures
+ */
+
+extern __thread char *cg_namespace_table[CG_CONTROLLER_MAX];
 
 /*
  * config related API
@@ -123,6 +137,7 @@ int cgroup_config_parse_controller_options(char *controller, char *name_value);
 int cgroup_config_group_task_perm(char *perm_type, char *value);
 int cgroup_config_group_admin_perm(char *perm_type, char *value);
 int cgroup_config_insert_into_mount_table(char *name, char *mount_point);
+int cgroup_config_insert_into_namespace_table(char *name, char *mount_point);
 void cgroup_config_cleanup_mount_table(void);
 __END_DECLS
 
