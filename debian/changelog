@@ -1,3 +1,25 @@
+libcgroup (0.35-1) unstable; urgency=low
+
+  * Imported Upstream version 0.35
+  * Remove manpage for cgclear, included upstream
+  * Remove obsolete debian patches
+  * Add missing manpages from upstream
+  * Update debian/watch to support new upstream versioning scheme
+  * Run autoreconf before configure
+  * Stop removing RPATH from certain files, fixed upstream
+  * Remove chrpath and docbook-to-man from build dependencies
+  * Bump standards version to 3.8.4, no changes necessary
+  * Remove redundant section definition for libcgroup1
+  * debian/libcgroup1.install: replace hardcoded version with wildcard
+  * debian/libcgroup1.install: include .la file in libcgroup1
+  * debian/cgroup-bin.manpages: update installed manpages
+  * Update manpages patch to escape hyphens
+  * Depend on 'cgconfig' in cgred initscript (Closes: #549480)
+  * Refresh cgconfig initscript patch
+  * Include patch tags on vendor patches (DEP3)
+
+ -- Jon Bernard <jbernard@debian.org>  Fri, 05 Mar 2010 14:49:56 -0500
+
 libcgroup (0.34-2) unstable; urgency=low
 
   * Fix initscript dependencies (Closes: #549480) - thanks to Petter
