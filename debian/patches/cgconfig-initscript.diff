@@ -1,5 +1,3 @@
-Index: b/scripts/init.d/cgconfig.in
-===================================================================
 --- a/scripts/init.d/cgconfig.in
 +++ b/scripts/init.d/cgconfig.in
 @@ -21,10 +21,10 @@
@@ -17,7 +15,7 @@ Index: b/scripts/init.d/cgconfig.in
  # Short-Description:    start and stop the WLM configuration
  # Description:          This script allows us to create a default configuration
  ### END INIT INFO
-@@ -72,7 +72,7 @@ umount_fs() {
+@@ -104,7 +104,7 @@ create_default_groups() {
  
  start() {
          echo -n "Starting cgconfig service: "
@@ -26,10 +24,10 @@ Index: b/scripts/init.d/cgconfig.in
          then
              log_warning_msg "lock file already exists"
              return
-@@ -138,11 +138,11 @@ start() {
-             done
-         done
- 	
+@@ -125,11 +125,11 @@ start() {
+                 create_default_groups
+         fi
+ 
 -        touch /var/lock/subsys/$servicename
 +        touch /var/lock/$servicename
          retval=$?
@@ -40,16 +38,16 @@ Index: b/scripts/init.d/cgconfig.in
              return $retval
          fi
          log_success_msg
-@@ -182,7 +182,7 @@ stop() {
+@@ -139,7 +139,7 @@ start() {
+ stop() {
      echo -n "Stopping cgconfig service: "
-     move_all_to_init_class
-     umount_fs
+     cgclear
 -    rm -f /var/lock/subsys/$servicename
 +    rm -f /var/lock/$servicename
      log_success_msg
  }
  
-@@ -219,7 +219,7 @@ case $1 in
+@@ -174,7 +174,7 @@ case $1 in
          common
          start;
          ;;
@@ -58,7 +56,7 @@ Index: b/scripts/init.d/cgconfig.in
          common
  	stop
          start
-@@ -230,13 +230,13 @@ case $1 in
+@@ -185,13 +185,13 @@ case $1 in
          start
          ;;
      'condrestart')
