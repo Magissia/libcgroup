@@ -8,10 +8,6 @@ override_dh_installinit:
 	dh_installinit --name cgconfig
 	dh_installinit --name cgred
 
-override_dh_installman:
-	docbook-to-man debian/cgclear.sgml > debian/cgclear.1
-	dh_installman
-
 override_dh_install:
 	mkdir -p debian/tmp/lib/security
 	cp debian/tmp/usr/lib/pam_cgroup.so.0.0.0 debian/tmp/lib/security/pam_cgroup.so
