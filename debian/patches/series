@@ -1,6 +1,4 @@
 manpages.diff
-cleantarget.diff
 cgconfig-initscript.diff
 cgred-initscript.diff
 cgconfig-config.diff
-no-libpam.diff
