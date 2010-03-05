@@ -2,6 +2,10 @@
 %:
 	dh --with quilt $@
 
+override_dh_auto_configure:
+	autoreconf --install --force
+	dh_auto_configure
+
 override_dh_installinit:
 	cp scripts/init.d/cgconfig debian/cgroup-bin.cgconfig.init
 	cp scripts/init.d/cgred    debian/cgroup-bin.cgred.init
