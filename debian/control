@@ -1,8 +1,8 @@
 Source: libcgroup
 Priority: extra
 Maintainer: Jon Bernard <jbernard@debian.org>
-Build-Depends: chrpath, quilt (>= 0.46-7), docbook-to-man, debhelper (>= 7.0.50~), autotools-dev, bison, flex, libpam0g-dev
 Standards-Version: 3.8.3
+Build-Depends: debhelper (>= 7.0.50~), quilt (>= 0.46-7), autoconf, automake, libtool, bison, flex, libpam0g-dev
 Section: libs
 Homepage: http://sourceforge.net/projects/libcg/
 
