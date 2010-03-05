@@ -1,18 +1,23 @@
-Index: libcgroup/doc/man/cgred.conf.5
-===================================================================
---- libcgroup.orig/doc/man/cgred.conf.5	2009-08-12 22:54:39.469152427 -0400
-+++ libcgroup/doc/man/cgred.conf.5	2009-08-12 22:55:16.989151952 -0400
-@@ -26,8 +26,7 @@
+--- a/doc/man/cgred.conf.5
++++ b/doc/man/cgred.conf.5
+@@ -21,13 +21,13 @@ variable specifies the file to which log
+ 
+ .TP
+ \fBNODAEMON\fR
+-if it is equal to "--nodamon" then
++if it is equal to "\-\-nodamon" then
+ run cgred in non-daemon mode
  
  .TP
  \fBLOG\fR
 -define the verbosity of logging. Accepted values are '-v', '-vv', '-q' and
 -'--nolog'.
-+define the verbosity of logging. Accepted values are '-v', '-vv', '-q' and '--nolog'.
++define the verbosity of logging. Accepted values are '\-v', '\-vv', '\-q' and
++\'\-\-nolog'.
  .LP
  
  
-@@ -38,7 +37,7 @@
+@@ -38,7 +38,7 @@ define the verbosity of logging. Accepte
  .B /etc/cgred.conf
  .TP
  default libcgroup configuration file
@@ -21,11 +26,9 @@ Index: libcgroup/doc/man/cgred.conf.5
  
  .SH SEE ALSO
  cgrules.conf (5),
-Index: libcgroup/doc/man/cgrules.conf.5
-===================================================================
---- libcgroup.orig/doc/man/cgrules.conf.5	2009-08-12 22:54:50.097151753 -0400
-+++ libcgroup/doc/man/cgrules.conf.5	2009-08-12 22:55:16.989151952 -0400
-@@ -116,7 +116,7 @@
+--- a/doc/man/cgrules.conf.5
++++ b/doc/man/cgrules.conf.5
+@@ -116,7 +116,7 @@ to the default/ control group.
  .B /etc/cgrules.conf
  .TP
  default libcgroup configuration file
@@ -34,3 +37,137 @@ Index: libcgroup/doc/man/cgrules.conf.5
  
  
  .SH SEE ALSO
+--- a/doc/man/cgclassify.1
++++ b/doc/man/cgclassify.1
+@@ -6,7 +6,7 @@
+ cgclassify \- move running task(s) to given cgroups
+ 
+ .SH SYNOPSIS
+-\fBcgclassify\fR [\fB-g\fR <\fIcontrollers>:<path\fR>] [--sticky] <\fIpidlist\fR>
++\fBcgclassify\fR [\fB-g\fR <\fIcontrollers>:<path\fR>] [\-\-sticky] <\fIpidlist\fR>
+ 
+ .SH DESCRIPTION
+ this command moves processes defined by the list
+--- a/doc/man/cgconfig.conf.5
++++ b/doc/man/cgconfig.conf.5
+@@ -196,7 +196,7 @@ inside. It corresponds to following oper
+ .RS
+ .nf
+ mkdir /mnt/cgroups/cpu
+-mount -t cgroup -o cpu,cpuacct cpu /mnt/cgroups/cpu
++mount \-t cgroup \-o cpu,cpuacct cpu /mnt/cgroups/cpu
+ .fi
+ .RE
+ 
+@@ -273,7 +273,7 @@ It corresponds to following operations:
+ .RS
+ .nf
+ mkdir /mnt/cgroups/cpu
+-mount -t cgroup -o cpu,cpuacct cpu /mnt/cgroups/cpu
++mount \-t cgroup \-o cpu,cpuacct cpu /mnt/cgroups/cpu
+ 
+ mkdir /mnt/cgroups/cpu/daemons
+ 
+@@ -338,8 +338,8 @@ It corresponds to following operations:
+ .nf
+ mkdir /mnt/cgroups/cpu
+ mkdir /mnt/cgroups/cpuacct
+-mount -t cgroup -o cpu cpu /mnt/cgroups/cpu
+-mount -t cgroup -o cpuacct cpuacct /mnt/cgroups/cpuacct
++mount \-t cgroup \-o cpu cpu /mnt/cgroups/cpu
++mount \-t cgroup \-o cpuacct cpuacct /mnt/cgroups/cpuacct
+ 
+ mkdir /mnt/cgroups/cpu/daemons
+ mkdir /mnt/cgroups/cpuacct/daemons
+@@ -405,8 +405,8 @@ It corresponds to following operations:
+ .nf
+ mkdir /mnt/cgroups/cpu
+ mkdir /mnt/cgroups/cpuacct
+-mount -t cgroup -o cpu cpu /mnt/cgroups/cpu
+-mount -t cgroup -o cpuacct cpuacct /mnt/cgroups/cpuacct
++mount \-t cgroup \-o cpu cpu /mnt/cgroups/cpu
++mount \-t cgroup \-o cpuacct cpuacct /mnt/cgroups/cpuacct
+ 
+ mkdir /mnt/cgroups/cpuacct/daemons
+ mkdir /mnt/cgroups/cpu/daemons
+@@ -501,7 +501,7 @@ It corresponds to following operations:
+ .RS
+ .nf
+ mkdir /mnt/cgroups/cpu
+-mount -t cgroup -o cpu,cpuacct cpu /mnt/cgroups/cpu
++mount \-t cgroup \-o cpu,cpuacct cpu /mnt/cgroups/cpu
+ 
+ chown root:operator /mnt/cgroups/cpu/*
+ chown root:operator /mnt/cgroups/cpu/tasks
+--- a/doc/man/cgcreate.1
++++ b/doc/man/cgcreate.1
+@@ -6,7 +6,7 @@ cgcreate \- create new cgroup(s)
+ 
+ .SH SYNOPSIS
+ \fBcgcreate\fR [\fB-t\fR <\fItuid>:<tgid\fR>] [\fB-a\fR <\fIagid>:<auid\fR>] 
+-\fB-g\fR <\fIcontrollers>:<path\fR> [-g ...]
++\fB-g\fR <\fIcontrollers>:<path\fR> [\-g ...]
+ 
+ .SH DESCRIPTION
+ The command creates new cgroup(s) defined by option 
+@@ -40,4 +40,4 @@ multiple times.
+ .SH SEE ALSO
+ cgrules.conf (5)
+ cgexec (1)
+-cgclassify (1)
+\ No newline at end of file
++cgclassify (1)
+--- a/doc/man/cgexec.1
++++ b/doc/man/cgexec.1
+@@ -7,7 +7,7 @@
+ cgexec \- run the task in given control groups
+ 
+ .SH SYNOPSIS
+-\fBcgexec\fR [\fB-g\fR <\fIcontrollers>:<path\fR>] [--sticky] \fBcommand\fR [\fIarguments\fR]
++\fBcgexec\fR [\fB-g\fR <\fIcontrollers>:<path\fR>] [\-\-sticky] \fBcommand\fR [\fIarguments\fR]
+ 
+ .SH DESCRIPTION
+ The \fBcgexec\fR
+@@ -46,7 +46,7 @@ changes the children tasks to the right 
+ 
+ .nf
+ .ft B
+-cgexec -g *:test1 ls
++cgexec \-g *:test1 ls
+ .ft R
+ .fi
+ runs command \fBls\fR in control group test1
+@@ -54,18 +54,18 @@ in all mounted controllers.
+ 
+ .nf
+ .ft B
+-cgexec -g cpu,memory:test1 ls -l
++cgexec \-g cpu,memory:test1 ls \-l
+ .ft R
+ .fi
+-runs command \fBls -l\fR in control group test1
++runs command \fBls \-l\fR in control group test1
+ in controllers cpu and memory.
+ 
+ .nf
+ .ft B
+-cgexec -g cpu,memory:test1 -g swap:test2 ls -l
++cgexec \-g cpu,memory:test1 \-g swap:test2 ls \-l
+ .ft R
+ .fi
+-runs command \fBls -l\fR in control group test1
++runs command \fBls \-l\fR in control group test1
+ in controllers cpu and memory and control group 
+ test2 in controller swap.
+ 
+--- a/doc/man/cgrulesengd.8
++++ b/doc/man/cgrulesengd.8
+@@ -45,7 +45,7 @@ messages and log errors only.
+ Disable logging.
+ .TP
+ .B -d|--debug
+-Equivalent to '-nvvf -', i.e. don't fork the daemon, display all log messages and
++Equivalent to '\-nvvf \-', i.e. don't fork the daemon, display all log messages and
+ write them to the standard output.
+ 
+ .SH FILES
