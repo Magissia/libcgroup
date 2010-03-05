@@ -1,3 +1,6 @@
+# Description: Remove RedHat specific file paths and fix LSB headers
+# Author: Jon Bernard <jbernard@debian.org>
+
 --- a/scripts/init.d/cgred.in
 +++ b/scripts/init.d/cgred.in
 @@ -22,11 +22,11 @@

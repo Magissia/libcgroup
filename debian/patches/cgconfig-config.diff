@@ -1,3 +1,6 @@
+# Description: Use reasonable default settings at installation
+# Author: Jon Bernard <jbernard@debian.org>
+
 Index: libcgroup/samples/cgconfig.conf
 ===================================================================
 --- libcgroup.orig/samples/cgconfig.conf	2009-08-25 18:57:09.194240159 -0400

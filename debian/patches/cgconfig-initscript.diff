@@ -1,3 +1,6 @@
+# Description: Remove RedHat specific file paths and fix LSB headers
+# Author: Jon Bernard <jbernard@debian.org>
+
 --- a/scripts/init.d/cgconfig.in
 +++ b/scripts/init.d/cgconfig.in
 @@ -21,10 +21,10 @@
