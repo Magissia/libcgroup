@@ -1,5 +1,3 @@
-Index: b/scripts/init.d/cgred.in
-===================================================================
 --- a/scripts/init.d/cgred.in
 +++ b/scripts/init.d/cgred.in
 @@ -22,11 +22,11 @@
@@ -12,7 +10,7 @@ Index: b/scripts/init.d/cgred.in
 -# Should-Start:		
 -# Should-Stop:		
 +# Provides:		cgred
-+# Required-Start:	$remote_fs $syslog $cgconfig
++# Required-Start:	$remote_fs $syslog cgconfig
 +# Required-Stop:	$remote_fs $syslog
 +# Default-Start:        2 3 4 5
 +# Default-Stop:         0 1 6
