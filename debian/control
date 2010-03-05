@@ -20,7 +20,6 @@ Description: Development libraries to develop applications that utilize control 
  provide scripts to manage that configuration.
 
 Package: libcgroup1
-Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: A library to control and monitor control groups
