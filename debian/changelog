@@ -1,3 +1,9 @@
+libcgroup (0.35-2) unstable; urgency=low
+
+  * Use memset to initialize sigaction struct (Closes: #549581)
+
+ -- Jon Bernard <jbernard@debian.org>  Mon, 08 Mar 2010 14:28:53 -0500
+
 libcgroup (0.35-1) unstable; urgency=low
 
   * Imported Upstream version 0.35
