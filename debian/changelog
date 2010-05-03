@@ -1,3 +1,11 @@
+libcgroup (0.35-3) unstable; urgency=low
+
+  * [b5eb1b] Drop .la files (Closes: #579812)
+  * [c9f683] Backport libcgroup.pc pkg-config file from upstream
+    (Closes: #579753)
+
+ -- Jon Bernard <jbernard@debian.org>  Mon, 03 May 2010 11:01:18 -0400
+
 libcgroup (0.35-2) unstable; urgency=low
 
   * Use memset to initialize sigaction struct (Closes: #549581)
