@@ -1,2 +1,3 @@
 usr/include
 usr/lib/libcgroup.so
+usr/lib/pkgconfig/libcgroup.pc
