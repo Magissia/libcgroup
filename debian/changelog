@@ -1,3 +1,15 @@
+libcgroup (0.36-1) unstable; urgency=low
+
+  * [be0275] Fix typo in debian/watch
+  * [1db135] Imported Upstream version 0.36 (Closes: #582440)
+  * [63e1bd] Remove cgget manpage, included upstream
+  * [66f232] Remove manpages patch, included upstream
+  * [5ab7ce] Remove pkg-config patch, included upstream
+  * [47ea10] Remove sa_restorer patch, included upstream
+  * [124d53] Add patch for missing includes, fixes build
+
+ -- Jon Bernard <jbernard@debian.org>  Thu, 20 May 2010 15:57:47 -0400
+
 libcgroup (0.35-3) unstable; urgency=low
 
   * [b5eb1b] Drop .la files (Closes: #579812)
