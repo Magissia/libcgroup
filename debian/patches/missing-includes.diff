@@ -1,0 +1,13 @@
+# Description: Add missing includes to fix broken build
+# Author: Jon Bernard <jbernard@debian.org>
+
+--- a/tests/test_named_hierarchy.c
++++ b/tests/test_named_hierarchy.c
+@@ -1,5 +1,7 @@
+ #include <stdio.h>
+ #include <libcgroup.h>
++#include <stdlib.h>
++#include <unistd.h>
+ 
+ /*
+  * Assumes cgroup is mounted at /cgroup using
