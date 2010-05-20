@@ -50,6 +50,7 @@
 #include <libgen.h>
 #include <assert.h>
 #include <linux/un.h>
+#include <grp.h>
 
 /*
  * The errno which happend the last time (have to be thread specific)
@@ -59,7 +60,7 @@ __thread int last_errno;
 #define MAXLEN 256
 
 /* the value have to be thread specific */
-__thread char errtext[MAXLEN];
+static __thread char errtext[MAXLEN];
 
 /* Task command name length */
 #define TASK_COMM_LEN 16
@@ -82,7 +83,10 @@ static pthread_rwlock_t rl_lock = PTHREAD_RWLOCK_INITIALIZER;
 /* Namespace */
 __thread char *cg_namespace_table[CG_CONTROLLER_MAX];
 
-char *cgroup_strerror_codes[] = {
+pthread_rwlock_t cg_mount_table_lock = PTHREAD_RWLOCK_INITIALIZER;
+struct cg_mount_table_s cg_mount_table[CG_CONTROLLER_MAX];
+
+const char const *cgroup_strerror_codes[] = {
 	"Cgroup is not compiled in",
 	"Cgroup is not mounted",
 	"Cgroup does not exist",
@@ -158,8 +162,10 @@ fail_chown:
 static int cg_chown_recursive(char **path, uid_t owner, gid_t group)
 {
 	int ret = 0;
+	FTS *fts;
+
 	cgroup_dbg("path is %s\n", *path);
-	FTS *fts = fts_open(path, FTS_PHYSICAL | FTS_NOCHDIR |
+	fts = fts_open(path, FTS_PHYSICAL | FTS_NOCHDIR |
 				FTS_NOSTAT, NULL);
 	while (1) {
 		FTSENT *ent;
@@ -172,6 +178,26 @@ static int cg_chown_recursive(char **path, uid_t owner, gid_t group)
 	}
 	fts_close(fts);
 	return ret;
+}
+
+static char *cgroup_basename(const char *path)
+{
+	char *base;
+	char *tmp_string;
+
+	tmp_string = strdup(path);
+
+	if (!tmp_string)
+		return NULL;
+
+	base = strdup(basename(tmp_string));
+
+	if (!base)
+		return NULL;
+
+	free(tmp_string);
+
+	return base;
 }
 
 static int cgroup_test_subsys_mounted(const char *name)
@@ -193,7 +219,7 @@ static int cgroup_test_subsys_mounted(const char *name)
 
 /**
  * Free a single cgroup_rule struct.
- * 	@param r The rule to free from memory
+ *	@param r The rule to free from memory
  */
 static void cgroup_free_rule(struct cgroup_rule *r)
 {
@@ -210,7 +236,7 @@ static void cgroup_free_rule(struct cgroup_rule *r)
 		r->procname = NULL;
 	}
 	/* We must free any used controller strings, too. */
-	for(i = 0; i < MAX_MNT_ELEMENTS; i++) {
+	for (i = 0; i < MAX_MNT_ELEMENTS; i++) {
 		if (r->controllers[i])
 			free(r->controllers[i]);
 	}
@@ -221,28 +247,28 @@ static void cgroup_free_rule(struct cgroup_rule *r)
 /**
  * Free a list of cgroup_rule structs.  If rl is the main list of rules,
  * the lock must be taken for writing before calling this function!
- * 	@param rl Pointer to the list of rules to free from memory
+ *	@param rl Pointer to the list of rules to free from memory
  */
-static void cgroup_free_rule_list(struct cgroup_rule_list *rl)
+static void cgroup_free_rule_list(struct cgroup_rule_list *cg_rl)
 {
 	/* Temporary pointer */
 	struct cgroup_rule *tmp = NULL;
 
 	/* Make sure we're not freeing NULL memory! */
-	if (!(rl->head)) {
+	if (!(cg_rl->head)) {
 		cgroup_dbg("Warning: Attempted to free NULL list.\n");
 		return;
 	}
 
-	while (rl->head) {
-		tmp = rl->head;
-		rl->head = tmp->next;
+	while (cg_rl->head) {
+		tmp = cg_rl->head;
+		cg_rl->head = tmp->next;
 		cgroup_free_rule(tmp);
 	}
 
 	/* Don't leave wild pointers around! */
-	rl->head = NULL;
-	rl->tail = NULL;
+	cg_rl->head = NULL;
+	cg_rl->tail = NULL;
 }
 
 static char *cg_skip_unused_charactors_in_rule(char *rule)
@@ -284,14 +310,14 @@ static char *cg_skip_unused_charactors_in_rule(char *rule)
  * as well as any children rules (rules that begin with a %) that it has.
  *
  * This function is NOT thread safe!
- * 	@param cache True to cache rules, else false
- * 	@param muid If cache is false, the UID to match against
- * 	@param mgid If cache is false, the GID to match against
- * 	@return 0 on success, -1 if no cache and match found, > 0 on error.
+ *	@param cache True to cache rules, else false
+ *	@param muid If cache is false, the UID to match against
+ *	@param mgid If cache is false, the GID to match against
+ *	@return 0 on success, -1 if no cache and match found, > 0 on error.
  * TODO: Make this function thread safe!
  */
 static int cgroup_parse_rules(bool cache, uid_t muid,
-					  gid_t mgid, char *mprocname)
+					  gid_t mgid, const char *mprocname)
 {
 	/* File descriptor for the configuration file */
 	FILE *fp = NULL;
@@ -324,7 +350,7 @@ static int cgroup_parse_rules(bool cache, uid_t muid,
 	char destination[FILENAME_MAX] = { '\0' };
 	uid_t uid = CGRULE_INVALID;
 	gid_t gid = CGRULE_INVALID;
-	int len_username;
+	size_t len_username;
 	int len_procname;
 
 	/* The current line number */
@@ -435,7 +461,8 @@ static int cgroup_parse_rules(bool cache, uid_t muid,
 		if (strncmp(user, "@", 1) == 0) {
 			/* New GID rule. */
 			itr = &(user[1]);
-			if ((grp = getgrnam(itr))) {
+			grp = getgrnam(itr);
+			if (grp) {
 				uid = CGRULE_INVALID;
 				gid = grp->gr_gid;
 			} else {
@@ -451,7 +478,8 @@ static int cgroup_parse_rules(bool cache, uid_t muid,
 			gid = CGRULE_WILD;
 		} else if (*itr != '%') {
 			/* New UID rule. */
-			if ((pwd = getpwnam(user))) {
+			pwd = getpwnam(user);
+			if (pwd) {
 				uid = pwd->pw_uid;
 				gid = CGRULE_INVALID;
 			} else {
@@ -479,14 +507,14 @@ static int cgroup_parse_rules(bool cache, uid_t muid,
 			}
 		}
 
-		if (uid == muid || gid == mgid || uid == CGRULE_WILD) {
+		if (uid == muid || gid == mgid || uid == CGRULE_WILD)
 			matched = true;
-		}
 
 		if (!cache) {
 			if (!matched)
 				continue;
 			if (len_procname) {
+				char *mproc_base;
 				/*
 				 * If there is a rule based on process name,
 				 * it should be matched with mprocname.
@@ -497,13 +525,17 @@ static int cgroup_parse_rules(bool cache, uid_t muid,
 					matched = false;
 					continue;
 				}
+
+				mproc_base = cgroup_basename(mprocname);
 				if (strcmp(mprocname, procname) &&
-					strcmp(basename(mprocname), procname)) {
+					strcmp(mproc_base, procname)) {
 					uid = CGRULE_INVALID;
 					gid = CGRULE_INVALID;
 					matched = false;
+					free(mproc_base);
 					continue;
 				}
+				free(mproc_base);
 			}
 		}
 
@@ -523,7 +555,8 @@ static int cgroup_parse_rules(bool cache, uid_t muid,
 
 		newrule->uid = uid;
 		newrule->gid = gid;
-		len_username = min(len_username, sizeof(newrule->username) - 1);
+		len_username = min(len_username,
+					sizeof(newrule->username) - 1);
 		strncpy(newrule->username, user, len_username);
 		if (len_procname) {
 			newrule->procname = strdup(procname);
@@ -577,9 +610,8 @@ static int cgroup_parse_rules(bool cache, uid_t muid,
 		cgroup_dbg("Added rule %s (UID: %d, GID: %d) -> %s for"
 			" controllers:", lst->tail->username, lst->tail->uid,
 			lst->tail->gid, lst->tail->destination);
-                for (i = 0; lst->tail->controllers[i]; i++) {
+		for (i = 0; lst->tail->controllers[i]; i++)
 			cgroup_dbg(" %s", lst->tail->controllers[i]);
-		}
 		cgroup_dbg("\n");
 
 		/* Finally, clear the buffer. */
@@ -613,7 +645,7 @@ unlock:
  * test case and we can really make it thread safe.
  *
  */
-int cgroup_init()
+int cgroup_init(void)
 {
 	FILE *proc_mount = NULL;
 	struct mntent *ent = NULL;
@@ -624,7 +656,7 @@ int cgroup_init()
 	FILE *proc_cgroup = NULL;
 	char subsys_name[FILENAME_MAX];
 	int hierarchy, num_cgroups, enabled;
-	int i=0;
+	int i = 0;
 	int j;
 	int duplicate = 0;
 	char *mntopt = NULL;
@@ -682,7 +714,7 @@ int cgroup_init()
 	temp_ent = (struct mntent *) malloc(sizeof(struct mntent));
 
 	if (!temp_ent) {
-		last_errno = errno; 
+		last_errno = errno;
 		ret = ECGOTHER;
 		goto unlock_exit;
 	}
@@ -709,8 +741,8 @@ int cgroup_init()
 			/* do not have duplicates in mount table */
 			duplicate = 0;
 			for  (j = 0; j < found_mnt; j++) {
-				if (strncmp(mntopt, cg_mount_table[j].name, FILENAME_MAX)
-					== 0) {
+				if (strncmp(mntopt, cg_mount_table[j].name,
+							FILENAME_MAX) == 0) {
 					duplicate = 1;
 					break;
 				}
@@ -722,6 +754,39 @@ int cgroup_init()
 			}
 
 			strcpy(cg_mount_table[found_mnt].name, controllers[i]);
+			strcpy(cg_mount_table[found_mnt].path, ent->mnt_dir);
+			cgroup_dbg("Found cgroup option %s, count %d\n",
+				ent->mnt_opts, found_mnt);
+			found_mnt++;
+		}
+
+		/*
+		 * Doesn't match the controller.
+		 * Check if it is a named hierarchy.
+		 */
+		mntopt = hasmntopt(ent, "name");
+
+		if (mntopt) {
+			mntopt = strtok_r(mntopt, ",", &strtok_buffer);
+			/*
+			 * Check if it is a duplicate
+			 */
+			duplicate = 0;
+			for (j = 0; j < found_mnt; j++) {
+				if (strncmp(mntopt, cg_mount_table[j].name,
+							FILENAME_MAX) == 0) {
+					duplicate = 1;
+					break;
+				}
+			}
+
+			if (duplicate) {
+				cgroup_dbg("controller %s is already mounted on %s\n",
+					mntopt, cg_mount_table[j].path);
+				continue;
+			}
+
+			strcpy(cg_mount_table[found_mnt].name, mntopt);
 			strcpy(cg_mount_table[found_mnt].path, ent->mnt_dir);
 			cgroup_dbg("Found cgroup option %s, count %d\n",
 				ent->mnt_opts, found_mnt);
@@ -759,7 +824,7 @@ unlock_exit:
 	return ret;
 }
 
-static int cg_test_mounted_fs()
+static int cg_test_mounted_fs(void)
 {
 	FILE *proc_mount = NULL;
 	struct mntent *ent = NULL;
@@ -768,9 +833,8 @@ static int cg_test_mounted_fs()
 	int ret = 1;
 
 	proc_mount = fopen("/proc/mounts", "r");
-	if (proc_mount == NULL) {
+	if (proc_mount == NULL)
 		return 0;
-	}
 
 	temp_ent = (struct mntent *) malloc(sizeof(struct mntent));
 	if (!temp_ent) {
@@ -787,7 +851,7 @@ static int cg_test_mounted_fs()
 		goto done;
 	}
 
-	while (strcmp(ent->mnt_type, "cgroup") !=0) {
+	while (strcmp(ent->mnt_type, "cgroup") != 0) {
 		ent = getmntent_r(proc_mount, temp_ent, mntent_buff,
 						sizeof(mntent_buff));
 		if (ent == NULL) {
@@ -801,14 +865,15 @@ done:
 	return ret;
 }
 
-static inline pid_t cg_gettid()
+static inline pid_t cg_gettid(void)
 {
 	return syscall(__NR_gettid);
 }
 
 
 /* Call with cg_mount_table_lock taken */
-static char *cg_build_path_locked(char *name, char *path, char *type)
+static char *cg_build_path_locked(const char *name, char *path,
+						const char *type)
 {
 	int i;
 	for (i = 0; cg_mount_table[i].name[0] != '\0'; i++) {
@@ -826,6 +891,9 @@ static char *cg_build_path_locked(char *name, char *path, char *type)
 			if (name) {
 				char *tmp;
 				tmp = strdup(path);
+
+				/* FIXME: missing OOM check here! */
+
 				sprintf(path, "%s%s/", tmp, name);
 				free(tmp);
 			}
@@ -835,7 +903,7 @@ static char *cg_build_path_locked(char *name, char *path, char *type)
 	return NULL;
 }
 
-char *cg_build_path(char *name, char *path, char *type)
+char *cg_build_path(const char *name, char *path, const char *type)
 {
 	pthread_rwlock_rdlock(&cg_mount_table_lock);
 	path = cg_build_path_locked(name, path, type);
@@ -898,11 +966,10 @@ int cgroup_attach_task_pid(struct cgroup *cgroup, pid_t tid)
 		cgroup_dbg("libcgroup is not initialized\n");
 		return ECGROUPNOTINITIALIZED;
 	}
-	if(!cgroup)
-	{
+	if (!cgroup) {
 		pthread_rwlock_rdlock(&cg_mount_table_lock);
-		for(i = 0; i < CG_CONTROLLER_MAX &&
-				cg_mount_table[i].name[0]!='\0'; i++) {
+		for (i = 0; i < CG_CONTROLLER_MAX &&
+				cg_mount_table[i].name[0] != '\0'; i++) {
 			if (!cg_build_path_locked(NULL, path,
 						cg_mount_table[i].name))
 				continue;
@@ -1040,7 +1107,7 @@ done:
  * just makes the group. It does not set any permissions, or any control values.
  * The argument path is the fully qualified path name to make it generic.
  */
-static int cg_create_control_group(char *path)
+static int cg_create_control_group(const char *path)
 {
 	int error;
 	if (!cg_test_mounted_fs())
@@ -1055,7 +1122,7 @@ static int cg_create_control_group(char *path)
  * This function takes in the complete path and sets the value in val in that
  * file.
  */
-static int cg_set_control_value(char *path, char *val)
+static int cg_set_control_value(char *path, const char *val)
 {
 	FILE *control_file = NULL;
 	if (!cg_test_mounted_fs())
@@ -1089,8 +1156,15 @@ static int cg_set_control_value(char *path, char *val)
 		return ECGROUPVALUENOTEXIST;
 	}
 
-	fprintf(control_file, "%s", val);
-	fclose(control_file);
+	if (fprintf(control_file, "%s", val) < 0) {
+		last_errno = errno;
+		fclose(control_file);
+		return ECGOTHER;
+	}
+	if (fclose(control_file) < 0) {
+		last_errno = errno;
+		return ECGOTHER;
+	}
 	return 0;
 }
 
@@ -1163,7 +1237,7 @@ err:
  *
  * Create a duplicate copy of values under the specified controller
  */
-int cgroup_copy_controller_values(struct cgroup_controller *dst,
+static int cgroup_copy_controller_values(struct cgroup_controller *dst,
 					struct cgroup_controller *src)
 {
 	int i, ret = 0;
@@ -1363,7 +1437,7 @@ err:
  *	Caller is responsible to free the returned string!
  * @return 0 on success, >0 on error.
  */
-int cgroup_find_parent(struct cgroup *cgroup, char **parent)
+static int cgroup_find_parent(struct cgroup *cgroup, char **parent)
 {
 	char child_path[FILENAME_MAX];
 	char *parent_path = NULL;
@@ -1534,7 +1608,7 @@ static int cg_move_task_files(FILE *input_tasks, FILE *output_tasks)
  * @param target_tasks Opened tasks file of the target group, where all
  *	processes should be moved.
  * @param flags Flag indicating whether the errors from task
- * 	migration should be ignored (CGROUP_DELETE_IGNORE_MIGRATION) or not (0).
+ *	migration should be ignored (CGROUP_DELETE_IGNORE_MIGRATION) or not (0).
  * @returns 0 on success, >0 on error.
  */
 static int cg_delete_cgroup_controller(char *cgroup_name, char *controller,
@@ -1772,7 +1846,8 @@ int cgroup_delete_cgroup_ext(struct cgroup *cgroup, int flags)
  * will assume that the callers have taken care of everything.
  * Including the locking.
  */
-static int cg_rd_ctrl_file(char *subsys, char *cgroup, char *file, char **value)
+static int cg_rd_ctrl_file(const char *subsys, const char *cgroup,
+					const char *file, char **value)
 {
 	char path[FILENAME_MAX];
 	FILE *ctrl_file = NULL;
@@ -1815,7 +1890,7 @@ static int cg_rd_ctrl_file(char *subsys, char *cgroup, char *file, char **value)
  * Call this function with required locks taken.
  */
 static int cgroup_fill_cgc(struct dirent *ctrl_dir, struct cgroup *cgroup,
-			struct cgroup_controller *cgc, int index)
+			struct cgroup_controller *cgc, int cg_index)
 {
 	char *ctrl_name = NULL;
 	char *ctrl_file = NULL;
@@ -1839,7 +1914,7 @@ static int cgroup_fill_cgc(struct dirent *ctrl_dir, struct cgroup *cgroup,
 	 * some sort of a flag, but this is fine for now.
 	 */
 
-	cg_build_path_locked(cgroup->name, path, cg_mount_table[index].name);
+	cg_build_path_locked(cgroup->name, path, cg_mount_table[cg_index].name);
 	strncat(path, d_name, sizeof(path) - strlen(path));
 
 	error = stat(path, &stat_buffer);
@@ -1866,8 +1941,8 @@ static int cgroup_fill_cgc(struct dirent *ctrl_dir, struct cgroup *cgroup,
 		goto fill_error;
 	}
 
-	if (strcmp(ctrl_name, cg_mount_table[index].name) == 0) {
-		error = cg_rd_ctrl_file(cg_mount_table[index].name,
+	if (strcmp(ctrl_name, cg_mount_table[cg_index].name) == 0) {
+		error = cg_rd_ctrl_file(cg_mount_table[cg_index].name,
 				cgroup->name, ctrl_dir->d_name, &ctrl_value);
 		if (error || !ctrl_value)
 			goto fill_error;
@@ -2024,10 +2099,10 @@ unlock_error:
  */
 static int cg_prepare_cgroup(struct cgroup *cgroup, pid_t pid,
 					const char *dest,
-					char *controllers[])
+					const char * const controllers[])
 {
 	int ret = 0, i;
-	char *controller = NULL;
+	const char *controller = NULL;
 	struct cgroup_controller *cptr = NULL;
 
 	/* Fill in cgroup details.  */
@@ -2078,8 +2153,8 @@ static int cg_prepare_cgroup(struct cgroup *cgroup, pid_t pid,
 	return ret;
 }
 
-static struct cgroup_rule *cgroup_find_matching_rule_uid_gid(const uid_t uid,
-				const gid_t gid, struct cgroup_rule *rule)
+static struct cgroup_rule *cgroup_find_matching_rule_uid_gid(uid_t uid,
+				gid_t gid, struct cgroup_rule *rule)
 {
 	/* Temporary user data */
 	struct passwd *usr = NULL;
@@ -2145,17 +2220,18 @@ static struct cgroup_rule *cgroup_find_matching_rule_uid_gid(const uid_t uid,
  * This function uses rl_lock.
  *
  * This function may NOT be thread safe.
- * 	@param uid The UID to match
- * 	@param gid The GID to match
- * 	@param procname The PROCESS NAME to match
- * 	@return Pointer to the first matching rule, or NULL if no match
+ *	@param uid The UID to match
+ *	@param gid The GID to match
+ *	@param procname The PROCESS NAME to match
+ *	@return Pointer to the first matching rule, or NULL if no match
  * TODO: Determine thread-safeness and fix if not safe.
  */
-static struct cgroup_rule *cgroup_find_matching_rule(const uid_t uid,
-				const gid_t gid, char *procname)
+static struct cgroup_rule *cgroup_find_matching_rule(uid_t uid,
+				gid_t gid, const char *procname)
 {
 	/* Return value */
 	struct cgroup_rule *ret = rl.head;
+	char *base = NULL;
 
 	pthread_rwlock_wrlock(&rl_lock);
 	while (ret) {
@@ -2171,18 +2247,25 @@ static struct cgroup_rule *cgroup_find_matching_rule(const uid_t uid,
 			break;
 		if (!strcmp(ret->procname, procname))
 			break;
-		if (!strcmp(ret->procname, basename(procname)))
+
+		base = cgroup_basename(procname);
+		if (!strcmp(ret->procname, base))
 			/* Check a rule of basename. */
 			break;
 		ret = ret->next;
+		free(base);
+		base = NULL;
 	}
 	pthread_rwlock_unlock(&rl_lock);
+
+	if (base)
+		free(base);
 
 	return ret;
 }
 
-int cgroup_change_cgroup_flags(const uid_t uid, const gid_t gid,
-		char *procname, const pid_t pid, const int flags)
+int cgroup_change_cgroup_flags(uid_t uid, gid_t gid,
+		const char *procname, pid_t pid, int flags)
 {
 	/* Temporary pointer to a rule */
 	struct cgroup_rule *tmp = NULL;
@@ -2197,7 +2280,7 @@ int cgroup_change_cgroup_flags(const uid_t uid, const gid_t gid,
 		goto finished;
 	}
 
-	/* 
+	/*
 	 * If the user did not ask for cached rules, we must parse the
 	 * configuration to find a matching rule (if one exists).  Else, we'll
 	 * find the first match in the cached list (rl).
@@ -2240,7 +2323,7 @@ int cgroup_change_cgroup_flags(const uid_t uid, const gid_t gid,
 		cgroup_dbg("Executing rule %s for PID %d... ", tmp->username,
 								pid);
 		ret = cgroup_change_cgroup_path(tmp->destination,
-				pid, tmp->controllers);
+				pid, (const char * const *)tmp->controllers);
 		if (ret) {
 			cgroup_dbg("FAILED! (Error Code: %d)\n", ret);
 			goto finished;
@@ -2258,8 +2341,8 @@ finished:
 	return ret;
 }
 
-int cgroup_change_cgroup_uid_gid_flags(const uid_t uid, const gid_t gid,
-				const pid_t pid, const int flags)
+int cgroup_change_cgroup_uid_gid_flags(uid_t uid, gid_t gid,
+				pid_t pid, int flags)
 {
 	return cgroup_change_cgroup_flags(uid, gid, NULL, pid, flags);
 }
@@ -2269,11 +2352,11 @@ int cgroup_change_cgroup_uid_gid_flags(const uid_t uid, const gid_t gid,
  * function is deprecated, and cgroup_change_cgroup_uid_gid_flags() should be
  * used instead.  In fact, this function simply calls the newer one with flags
  * set to 0 (none).
- * 	@param uid The UID to match
- * 	@param gid The GID to match
- * 	@param pid The PID of the process to move
- * 	@return 0 on success, > 0 on error
- * 
+ *	@param uid The UID to match
+ *	@param gid The GID to match
+ *	@param pid The PID of the process to move
+ *	@return 0 on success, > 0 on error
+ *
  */
 int cgroup_change_cgroup_uid_gid(uid_t uid, gid_t gid, pid_t pid)
 {
@@ -2287,7 +2370,8 @@ int cgroup_change_cgroup_uid_gid(uid_t uid, gid_t gid, pid_t pid)
  *
  *  returns 0 on success.
  */
-int cgroup_change_cgroup_path(char *dest, pid_t pid, char *controllers[])
+int cgroup_change_cgroup_path(const char *dest, pid_t pid,
+				const char *const controllers[])
 {
 	int ret;
 	struct cgroup cgroup;
@@ -2313,7 +2397,7 @@ int cgroup_change_cgroup_path(char *dest, pid_t pid, char *controllers[])
  * Print the cached rules table.  This function should be called only after
  * first calling cgroup_parse_config(), but it will work with an empty rule
  * list.
- * 	@param fp The file stream to print to
+ *	@param fp The file stream to print to
  */
 void cgroup_print_rules_config(FILE *fp)
 {
@@ -2356,9 +2440,8 @@ void cgroup_print_rules_config(FILE *fp)
 
 		fprintf(fp, "  CONTROLLERS:\n");
 		for (i = 0; i < MAX_MNT_ELEMENTS; i++) {
-			if (itr->controllers[i]) {
+			if (itr->controllers[i])
 				fprintf(fp, "    %s\n", itr->controllers[i]);
-			}
 		}
 		fprintf(fp, "\n");
 		itr = itr->next;
@@ -2369,9 +2452,9 @@ void cgroup_print_rules_config(FILE *fp)
 /**
  * Reloads the rules list, using the given configuration file.  This function
  * is probably NOT thread safe (calls cgroup_parse_rules()).
- * 	@return 0 on success, > 0 on failure
+ *	@return 0 on success, > 0 on failure
  */
-int cgroup_reload_cached_rules()
+int cgroup_reload_cached_rules(void)
 {
 	/* Return codes */
 	int ret = 0;
@@ -2384,7 +2467,7 @@ int cgroup_reload_cached_rules()
 		ret = ECGRULESPARSEFAIL;
 		goto finished;
 	}
-		
+
 	#ifdef CGROUP_DEBUG
 		cgroup_print_rules_config(stdout);
 	#endif
@@ -2395,9 +2478,9 @@ finished:
 
 /**
  * Initializes the rules cache.
- * 	@return 0 on success, > 0 on error
+ *	@return 0 on success, > 0 on error
  */
-int cgroup_init_rules_cache()
+int cgroup_init_rules_cache(void)
 {
 	/* Return codes */
 	int ret = 0;
@@ -2420,7 +2503,7 @@ int cgroup_init_rules_cache()
  * @pid: pid of the current process for which the path is to be determined
  * @controller: name of the controller for which to determine current path
  * @current_path: a pointer that is filled with the value of the current
- * 		path as seen in /proc/<pid>/cgroup
+ *		path as seen in /proc/<pid>/cgroup
  */
 int cgroup_get_current_controller_path(pid_t pid, const char *controller,
 					char **current_path)
@@ -2505,18 +2588,18 @@ cleanup_path:
 	return ret;
 }
 
-char *cgroup_strerror(int code)
+const char *cgroup_strerror(int code)
 {
-	if (code == ECGOTHER) {
+	if (code == ECGOTHER)
 		return strerror_r(cgroup_get_last_errno(), errtext, MAXLEN);
-	}
+
 	return cgroup_strerror_codes[code % ECGROUPNOTCOMPILED];
 }
 
 /**
  * Return last errno, which caused ECGOTHER error.
  */
-int cgroup_get_last_errno()
+int cgroup_get_last_errno(void)
 {
     return last_errno;
 }
@@ -2566,7 +2649,7 @@ static int cg_walk_node(FTS *fts, FTSENT *ent, const int depth,
 	return ret;
 }
 
-int cgroup_walk_tree_next(const int depth, void **handle,
+int cgroup_walk_tree_next(int depth, void **handle,
 				struct cgroup_file_info *info, int base_level)
 {
 	int ret = 0;
@@ -2614,12 +2697,11 @@ int cgroup_walk_tree_end(void **handle)
 /*
  * TODO: Need to decide a better place to put this function.
  */
-int cgroup_walk_tree_begin(char *controller, char *base_path, const int depth,
-				void **handle, struct cgroup_file_info *info,
-				int *base_level)
+int cgroup_walk_tree_begin(const char *controller, const char *base_path,
+		int depth, void **handle, struct cgroup_file_info *info,
+							int *base_level)
 {
 	int ret = 0;
-	cgroup_dbg("path is %s\n", base_path);
 	char *cg_path[2];
 	char full_path[FILENAME_MAX];
 	FTSENT *ent;
@@ -2630,6 +2712,10 @@ int cgroup_walk_tree_begin(char *controller, char *base_path, const int depth,
 
 	if (!handle)
 		return ECGINVAL;
+
+	cgroup_dbg("path is %s\n", base_path);
+
+	cgroup_dbg("path is %s\n", base_path);
 
 	if (!cg_build_path(base_path, full_path, controller))
 		return ECGOTHER;
@@ -2688,16 +2774,17 @@ int cgroup_walk_tree_set_flags(void **handle, int flags)
  * This parses a stat line which is in the form of (name value) pair
  * separated by a space.
  */
-int cg_read_stat(FILE *fp, struct cgroup_stat *stat)
+static int cg_read_stat(FILE *fp, struct cgroup_stat *cgroup_stat)
 {
 	int ret = 0;
 	char *line = NULL;
 	size_t len = 0;
-	ssize_t read;
-	char *token, *saveptr;
+	ssize_t read_bytes;
+	char *token;
+	char *saveptr = NULL;
 
-	read = getline(&line, &len, fp);
-	if (read == -1)
+	read_bytes = getline(&line, &len, fp);
+	if (read_bytes == -1)
 		return ECGEOF;
 
 	token = strtok_r(line, " ", &saveptr);
@@ -2705,14 +2792,14 @@ int cg_read_stat(FILE *fp, struct cgroup_stat *stat)
 		ret = ECGINVAL;
 		goto out_free;
 	}
-	strncpy(stat->name, token, FILENAME_MAX);
+	strncpy(cgroup_stat->name, token, FILENAME_MAX);
 
 	token = strtok_r(NULL, " ", &saveptr);
 	if (!token) {
 		ret = ECGINVAL;
 		goto out_free;
 	}
-	strncpy(stat->value, token, CG_VALUE_MAX);
+	strncpy(cgroup_stat->value, token, CG_VALUE_MAX);
 
 out_free:
 	free(line);
@@ -2734,7 +2821,7 @@ int cgroup_read_stats_end(void **handle)
 	return 0;
 }
 
-int cgroup_read_stats_next(void **handle, struct cgroup_stat *stat)
+int cgroup_read_stats_next(void **handle, struct cgroup_stat *cgroup_stat)
 {
 	int ret = 0;
 	FILE *fp;
@@ -2742,11 +2829,11 @@ int cgroup_read_stats_next(void **handle, struct cgroup_stat *stat)
 	if (!cgroup_initialized)
 		return ECGROUPNOTINITIALIZED;
 
-	if (!handle || !stat)
+	if (!handle || !cgroup_stat)
 		return ECGINVAL;
 
 	fp = (FILE *)*handle;
-	ret = cg_read_stat(fp, stat);
+	ret = cg_read_stat(fp, cgroup_stat);
 	*handle = fp;
 	return ret;
 }
@@ -2754,8 +2841,8 @@ int cgroup_read_stats_next(void **handle, struct cgroup_stat *stat)
 /*
  * TODO: Need to decide a better place to put this function.
  */
-int cgroup_read_stats_begin(char *controller, char *path, void **handle,
-				struct cgroup_stat *stat)
+int cgroup_read_stats_begin(const char *controller, const char *path,
+				void **handle, struct cgroup_stat *cgroup_stat)
 {
 	int ret = 0;
 	char stat_file[FILENAME_MAX];
@@ -2764,7 +2851,7 @@ int cgroup_read_stats_begin(char *controller, char *path, void **handle,
 	if (!cgroup_initialized)
 		return ECGROUPNOTINITIALIZED;
 
-	if (!stat || !handle)
+	if (!cgroup_stat || !handle)
 		return ECGINVAL;
 
 	if (!cg_build_path(path, stat_file, controller))
@@ -2778,7 +2865,7 @@ int cgroup_read_stats_begin(char *controller, char *path, void **handle,
 		return ECGINVAL;
 	}
 
-	ret = cg_read_stat(fp, stat);
+	ret = cg_read_stat(fp, cgroup_stat);
 	*handle = fp;
 	return ret;
 }
@@ -2819,8 +2906,8 @@ int cgroup_get_task_next(void **handle, pid_t *pid)
 	return 0;
 }
 
-int cgroup_get_task_begin(char *cgroup, char *controller, void **handle,
-								pid_t *pid)
+int cgroup_get_task_begin(const char *cgroup, const char *controller,
+					void **handle, pid_t *pid)
 {
 	int ret = 0;
 	char path[FILENAME_MAX];
@@ -3028,8 +3115,8 @@ static int cg_get_procname_from_proc_status(pid_t pid, char **procname_status)
  * @param pname_cmdline: The process name taken from /proc/<pid>/cmdline
  * @return 0 on success, > 0 on error.
  */
-static int cg_get_procname_from_proc_cmdline(pid_t pid, char *pname_status,
-							char **pname_cmdline)
+static int cg_get_procname_from_proc_cmdline(pid_t pid,
+			const char *pname_status, char **pname_cmdline)
 {
 	FILE *f;
 	int ret = ECGFAIL;
@@ -3175,7 +3262,7 @@ int cgroup_register_unchanged_process(pid_t pid, int flags)
 	if (sk < 0)
 		return 1;
 
-	bzero((char *)&addr, sizeof(addr));
+	memset(&addr, 0, sizeof(addr));
 	addr.sun_family = AF_UNIX;
 	strcpy(addr.sun_path, CGRULE_CGRED_SOCKET_PATH);
 
@@ -3204,7 +3291,7 @@ close:
 	return ret;
 }
 
-int cgroup_get_subsys_mount_point(char *controller, char **mount_point)
+int cgroup_get_subsys_mount_point(const char *controller, char **mount_point)
 {
 	int i;
 	int ret = ECGROUPNOTEXIST;

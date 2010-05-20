@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
 	uid_t uid;
 	gid_t gid;
 	pid_t pid;
-	char c;
+	int c;
 	struct cgroup_group_spec *cgroup_list[CG_HIER_MAX];
 
 	if (argc < 2) {
@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
 
 			ret = cgroup_change_cgroup_path(cgroup_list[i]->path,
 							pid,
-						cgroup_list[i]->controllers);
+                                                        (const char*const*) cgroup_list[i]->controllers);
 			if (ret) {
 				fprintf(stderr,
 					"cgroup change of group failed\n");

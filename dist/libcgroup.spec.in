@@ -55,6 +55,7 @@ make DESTDIR=$RPM_BUILD_ROOT install
 # install config files
 mkdir -p $RPM_BUILD_ROOT/%{_sysconfdir}/sysconfig
 cp samples/cgred.conf $RPM_BUILD_ROOT/%{_sysconfdir}/sysconfig/cgred.conf
+cp samples/cgconfig.sysconfig $RPM_BUILD_ROOT/%{_sysconfdir}/sysconfig/cgconfig
 cp samples/cgconfig.conf $RPM_BUILD_ROOT/%{_sysconfdir}/cgconfig.conf
 cp samples/cgrules.conf $RPM_BUILD_ROOT/%{_sysconfdir}/cgrules.conf
 
@@ -68,6 +69,10 @@ mkdir -p $RPM_BUILD_ROOT/%{_libdir}
 mv -f $RPM_BUILD_ROOT/%{_lib}/libcgroup.la $RPM_BUILD_ROOT/%{_libdir}
 rm -f $RPM_BUILD_ROOT/%{_lib}/libcgroup.so
 ln -sf ../../%{_lib}/libcgroup.so.%{soversion} $RPM_BUILD_ROOT/%{_libdir}/libcgroup.so
+
+# move the package config file to /usr/lib/pkgconfig
+mkdir -p $RPM_BUILD_ROOT/%{_libdir}/pkgconfig
+mv -f $RPM_BUILD_ROOT/%{_lib}/pkgconfig/libcgroup.pc $RPM_BUILD_ROOT/%{_libdir}/pkgconfig/libcgroup.pc
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -90,12 +95,14 @@ fi
 %files 
 %defattr(-,root,root,-)
 %config(noreplace) %{_sysconfdir}/sysconfig/cgred.conf
+%config(noreplace) %{_sysconfdir}/sysconfig/cgconfig
 %config(noreplace) %{_sysconfdir}/cgconfig.conf
 %config(noreplace) %{_sysconfdir}/cgrules.conf
 /%{_lib}/libcgroup.so.*
 /bin/cgexec
 /bin/cgclassify
 /bin/cgcreate
+/bin/cgget
 /bin/cgset
 /bin/cgdelete
 /bin/lscgroup
@@ -119,11 +126,17 @@ fi
 %files devel
 %defattr(-,root,root,-)
 %{_includedir}/libcgroup.h
+%{_includedir}/libcgroup/*.h
 %{_libdir}/libcgroup.*
+/%{_libdir}/pkgconfig/libcgroup.pc
 %doc COPYING INSTALL 
 
 
 %changelog
+* Thu Feb 18 2010 Dhaval Giani <dhaval.giani@gmail.com> 0.36.rc1-1
+- Add pkgconfig file
+* Tue Jan 19 2010 Balbir Singh <balbir@linux.vnet.ibm.com> 0.35.1
+- Integrate Jan's fixes for distributing cgget and initscripts
 * Thu Oct 22 2009 Jan Safranek <jsafrane@redhat.com> 0.34-1
 - Update to latest upstream
 - Split PAM module to separate subpackage
