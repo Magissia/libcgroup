@@ -26,6 +26,26 @@ __BEGIN_DECLS
 #include <sys/stat.h>
 #include <sys/types.h>
 
+/* Maximum number of mount points/controllers */
+#define MAX_MNT_ELEMENTS	8
+/* Estimated number of groups created */
+#define MAX_GROUP_ELEMENTS	128
+
+#define CG_NV_MAX 100
+#define CG_CONTROLLER_MAX 100
+/* Max number of mounted hierarchies. Event if one controller is mounted per
+ * hier, it can not exceed CG_CONTROLLER_MAX
+ */
+#define CG_HIER_MAX  CG_CONTROLLER_MAX
+
+/* Definitions for the uid and gid members of a cgroup_rules */
+/* FIXME: These really should not be negative values */
+#define CGRULE_INVALID ((uid_t) -1)
+#define CGRULE_WILD ((uid_t) -2)
+
+#define CGRULE_SUCCESS_STORE_PID	"SUCCESS_STORE_PID"
+
+
 #define CGRULES_CONF_FILE       "/etc/cgrules.conf"
 #define CGRULES_MAX_FIELDS_PER_LINE		3
 
@@ -108,9 +128,13 @@ struct cgroup_tree_handle {
 	int flags;
 };
 
+/**
+ * per thread errno variable, to be used when return code is ECGOTHER
+ */
+extern __thread int last_errno;
 
 /* Internal API */
-char *cg_build_path(char *name, char *path, char *type);
+char *cg_build_path(const char *name, char *path, const char *type);
 int cgroup_get_uid_gid_from_procfs(pid_t pid, uid_t *euid, gid_t *egid);
 int cgroup_get_procname_from_procfs(pid_t pid, char **procname);
 int cg_mkdir_p(const char *path);
@@ -120,8 +144,8 @@ struct cgroup *create_cgroup_from_name_value_pairs(const char *name,
 /*
  * Main mounting structures
  */
-struct cg_mount_table_s cg_mount_table[CG_CONTROLLER_MAX];
-static pthread_rwlock_t cg_mount_table_lock = PTHREAD_RWLOCK_INITIALIZER;
+extern struct cg_mount_table_s cg_mount_table[CG_CONTROLLER_MAX];
+extern pthread_rwlock_t cg_mount_table_lock;
 
 /*
  * config related structures
@@ -139,6 +163,7 @@ int cgroup_config_group_admin_perm(char *perm_type, char *value);
 int cgroup_config_insert_into_mount_table(char *name, char *mount_point);
 int cgroup_config_insert_into_namespace_table(char *name, char *mount_point);
 void cgroup_config_cleanup_mount_table(void);
+void cgroup_config_cleanup_namespace_table(void);
 __END_DECLS
 
 #endif

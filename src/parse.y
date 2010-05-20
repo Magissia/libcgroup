@@ -24,7 +24,7 @@ int yylex(void);
 extern int line_no;
 extern char *yytext;
 
-void yyerror(char *s)
+static void yyerror(const char *s)
 {
 	fprintf(stderr, "error at line number %d at %s:%s\n", line_no, yytext,
 		s);
@@ -72,9 +72,15 @@ start   : start group
 group   :       GROUP ID '{' group_conf '}'
 	{
 		$$ = $4;
-		if ($$)
-			cgroup_config_insert_cgroup($2);
-		else {
+		if ($$) {
+			$$ = cgroup_config_insert_cgroup($2);
+			if (!$$) {
+				fprintf(stderr, "failed to insert group"
+					" check size and memory");
+				$$ = ECGOTHER;
+				return $$;
+			}
+		} else {
 			fprintf(stderr, "parsing failed at line number %d\n",
 				line_no);
 			$$ = ECGCONFIGPARSEFAIL;
@@ -94,7 +100,7 @@ group_conf
 			return $$;
 		}
 	}
-        |       group_conf ID '{' namevalue_conf '}' 
+        |       group_conf ID '{' namevalue_conf '}'
 	{
 		$$ = cgroup_config_parse_controller_options($2, $4);
 		if (!$$) {
