@@ -4,6 +4,8 @@ Maintainer: Jon Bernard <jbernard@debian.org>
 Build-Depends: debhelper (>= 7.0.50~), quilt (>= 0.46-7), autoconf, automake, libtool, bison, flex, libpam0g-dev
 Standards-Version: 3.8.4
 Section: libs
+Vcs-Git: git://git.debian.org/git/collab-maint/libcgroup.git
+Vcs-Browser: http://git.debian.org/?p=collab-maint/libcgroup.git;a=summary
 Homepage: http://sourceforge.net/projects/libcg/
 
 Package: libcgroup-dev
