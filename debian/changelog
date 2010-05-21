@@ -1,3 +1,12 @@
+libcgroup (0.36.1-1) unstable; urgency=low
+
+  * [d1d65a] Add Vcs fields to debian/control
+  * [2ca672] Exclude release candidates from debian/watch
+  * [36e728] Imported Upstream version 0.36.1
+  * [41bdfa] Remove missing-includes patch, included upstream
+
+ -- Jon Bernard <jbernard@debian.org>  Fri, 21 May 2010 15:54:53 -0400
+
 libcgroup (0.36-1) unstable; urgency=low
 
   * [be0275] Fix typo in debian/watch
