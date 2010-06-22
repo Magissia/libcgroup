@@ -113,6 +113,7 @@ PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
 PACKAGE_NAME = @PACKAGE_NAME@
 PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
+PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 RANLIB = @RANLIB@
@@ -165,6 +166,7 @@ lt_ECHO = @lt_ECHO@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 oldincludedir = @oldincludedir@
+pamlibdir = @pamlibdir@
 pdfdir = @pdfdir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
@@ -178,7 +180,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 EXTRA_DIST = init.d/cgconfig.in init.d/cgred.in
-INITSCRIPTDIR = $(DESTDIR)/etc/rc.d/init.d
+@WITH_INITSCRIPT_INSTALL_TRUE@INITSCRIPTDIR = $(DESTDIR)$(sysconfdir)/rc.d/init.d
 all: all-am
 
 .SUFFIXES:
@@ -284,6 +286,8 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
+@WITH_INITSCRIPT_INSTALL_FALSE@install-exec-hook:
+@WITH_INITSCRIPT_INSTALL_FALSE@uninstall-hook:
 clean: clean-am
 
 clean-am: clean-generic clean-libtool mostlyclean-am
@@ -366,12 +370,12 @@ uninstall-am:
 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
 	uninstall uninstall-am uninstall-hook
 
-install-exec-hook:
-	mkdir -p $(INITSCRIPTDIR)
-	cp init.d/cgconfig init.d/cgred $(INITSCRIPTDIR)
+@WITH_INITSCRIPT_INSTALL_TRUE@install-exec-hook:
+@WITH_INITSCRIPT_INSTALL_TRUE@	mkdir -p $(INITSCRIPTDIR)
+@WITH_INITSCRIPT_INSTALL_TRUE@	cp init.d/cgconfig init.d/cgred $(INITSCRIPTDIR)
 
-uninstall-hook:
-	rm -f $(INITSCRIPTDIR)/cgconfig $(INITSCRIPTDIR)/cgred
+@WITH_INITSCRIPT_INSTALL_TRUE@uninstall-hook:
+@WITH_INITSCRIPT_INSTALL_TRUE@	rm -f $(INITSCRIPTDIR)/cgconfig $(INITSCRIPTDIR)/cgred
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

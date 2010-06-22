@@ -1,9 +1,10 @@
 %define soversion 1.0.36
+%define soversion_major 1
 
 Name: libcgroup
 Summary: Tools and libraries to control and monitor control groups
 Group: System Environment/Libraries
-Version: 0.36.1
+Version: 0.36.2
 Release:        1%{?dist}
 License: LGPLv2+
 URL: http://libcg.sourceforge.net/
@@ -43,7 +44,7 @@ provide scripts to manage that configuration.
 %setup -q
 
 %build
-%configure --bindir=/bin --sbindir=/sbin --libdir=/%{_lib}
+%configure --bindir=/bin --sbindir=/sbin --libdir=%{_libdir} --enable-initscript-install --enable-pam-module-dir=/%{_lib}/security
 
 make %{?_smp_mflags}
 
@@ -59,21 +60,17 @@ cp samples/cgconfig.sysconfig $RPM_BUILD_ROOT/%{_sysconfdir}/sysconfig/cgconfig
 cp samples/cgconfig.conf $RPM_BUILD_ROOT/%{_sysconfdir}/cgconfig.conf
 cp samples/cgrules.conf $RPM_BUILD_ROOT/%{_sysconfdir}/cgrules.conf
 
-# sanitize pam module, we need only pam_cgroup.so in the right directory
-mkdir -p $RPM_BUILD_ROOT/%{_lib}/security
-mv -f $RPM_BUILD_ROOT/%{_lib}/pam_cgroup.so.*.*.* $RPM_BUILD_ROOT/%{_lib}/security/pam_cgroup.so
-rm -f $RPM_BUILD_ROOT/%{_lib}/pam_cgroup*
+# sanitize pam module, we need only pam_cgroup.so
+mv -f $RPM_BUILD_ROOT/%{_lib}/security/pam_cgroup.so.*.*.* $RPM_BUILD_ROOT/%{_lib}/security/pam_cgroup.so
+rm -f $RPM_BUILD_ROOT/%{_lib}/security/pam_cgroup.la $RPM_BUILD_ROOT/%{_lib}/security/pam_cgroup.so.*
 
-# move the devel stuff to /usr
-mkdir -p $RPM_BUILD_ROOT/%{_libdir}
-mv -f $RPM_BUILD_ROOT/%{_lib}/libcgroup.la $RPM_BUILD_ROOT/%{_libdir}
-rm -f $RPM_BUILD_ROOT/%{_lib}/libcgroup.so
+# move the libraries  to /
+mkdir -p $RPM_BUILD_ROOT/%{_lib}
+mv -f $RPM_BUILD_ROOT/%{_libdir}/libcgroup.so.%{soversion} $RPM_BUILD_ROOT/%{_lib}
+rm -f $RPM_BUILD_ROOT/%{_libdir}/libcgroup.so.%{soversion_major}
+ln -sf libcgroup.so.%{soversion} $RPM_BUILD_ROOT/%{_lib}/libcgroup.so.%{soversion_major}
 ln -sf ../../%{_lib}/libcgroup.so.%{soversion} $RPM_BUILD_ROOT/%{_libdir}/libcgroup.so
-
-# move the package config file to /usr/lib/pkgconfig
-mkdir -p $RPM_BUILD_ROOT/%{_libdir}/pkgconfig
-mv -f $RPM_BUILD_ROOT/%{_lib}/pkgconfig/libcgroup.pc $RPM_BUILD_ROOT/%{_libdir}/pkgconfig/libcgroup.pc
-
+rm -f $RPM_BUILD_ROOT/%{_libdir}/*.la
 %clean
 rm -rf $RPM_BUILD_ROOT
 
