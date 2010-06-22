@@ -141,6 +141,7 @@ PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
 PACKAGE_NAME = @PACKAGE_NAME@
 PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
+PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 RANLIB = @RANLIB@
@@ -193,6 +194,7 @@ lt_ECHO = @lt_ECHO@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 oldincludedir = @oldincludedir@
+pamlibdir = @pamlibdir@
 pdfdir = @pdfdir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
@@ -206,7 +208,8 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 man_MANS = cgclassify.1 cgconfig.conf.5 cgconfigparser.8 cgexec.1 cgred.conf.5 \
-           cgrules.conf.5 cgrulesengd.8 cgcreate.1 cgset.1 cgclear.1 cgget.1
+           cgrules.conf.5 cgrulesengd.8 cgcreate.1 cgset.1 cgclear.1 cgget.1 \
+           cgdelete.1 lssubsys.1 lscgroup.1
 
 EXTRA_DIST = $(man_MANS)
 all: all-am

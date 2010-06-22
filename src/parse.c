@@ -1679,7 +1679,7 @@ yyreduce:
     {
 		if (!cgroup_config_insert_into_mount_table((yyvsp[(1) - (4)].name), (yyvsp[(3) - (4)].name))) {
 			cgroup_config_cleanup_mount_table();
-			(yyval.val) = 0;
+			(yyval.val) = ECGCONFIGPARSEFAIL;
 			return (yyval.val);
 		}
 		(yyval.val) = 1;
@@ -1693,7 +1693,7 @@ yyreduce:
     {
 		if (!cgroup_config_insert_into_mount_table((yyvsp[(2) - (5)].name), (yyvsp[(4) - (5)].name))) {
 			cgroup_config_cleanup_mount_table();
-			(yyval.val) = 0;
+			(yyval.val) = ECGCONFIGPARSEFAIL;
 			return (yyval.val);
 		}
 		(yyval.val) = 1;
@@ -1722,7 +1722,7 @@ yyreduce:
     {
 		if (!cgroup_config_insert_into_namespace_table((yyvsp[(1) - (4)].name), (yyvsp[(3) - (4)].name))) {
 			cgroup_config_cleanup_namespace_table();
-			(yyval.val) = 0;
+			(yyval.val) = ECGCONFIGPARSEFAIL;
 			return (yyval.val);
 		}
 		(yyval.val) = 1;
@@ -1736,7 +1736,7 @@ yyreduce:
     {
 		if (!cgroup_config_insert_into_namespace_table((yyvsp[(2) - (5)].name), (yyvsp[(4) - (5)].name))) {
 			cgroup_config_cleanup_namespace_table();
-			(yyval.val) = 0;
+			(yyval.val) = ECGCONFIGPARSEFAIL;
 			return (yyval.val);
 		}
 		(yyval.val) = 1;
@@ -1752,7 +1752,7 @@ yyreduce:
 		if (!(yyval.val)) {
 			fprintf(stderr, "parsing failed at line number %d\n",
 				line_no);
-			(yyval.val) = 0;
+			(yyval.val) = ECGCONFIGPARSEFAIL;
 			return (yyval.val);
 		}
 	}
