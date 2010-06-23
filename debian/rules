@@ -13,8 +13,7 @@ override_dh_installinit:
 	dh_installinit --name cgred
 
 override_dh_install:
-	mkdir -p debian/tmp/lib/security
-	cp debian/tmp/lib/pam_cgroup.so.0.0.0 debian/tmp/lib/security/pam_cgroup.so
+	mv debian/tmp/lib/security/pam_cgroup.so.0.0.0 debian/tmp/lib/security/pam_cgroup.so
 	dh_install
 
 override_dh_makeshlibs:
