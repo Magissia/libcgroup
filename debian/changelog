@@ -1,3 +1,14 @@
+libcgroup (0.36.2-1) unstable; urgency=low
+
+  * [df1c38] Imported Upstream version 0.36.2
+  * [afe1f0] Remove cgdelete manpage, included upstream
+  * [afecca] Remove lscgroup manpage, included upstream
+  * [e68c9a] Remove lssubsys manpage, included upstream
+  * [54f5da] Fix install override to handle changed location of pam
+    module
+
+ -- Jon Bernard <jbernard@debian.org>  Wed, 23 Jun 2010 14:16:40 -0400
+
 libcgroup (0.36.1-2) unstable; urgency=low
 
   * [8a9de6] Install shared object and symlinks in /lib (Closes: #583513)
