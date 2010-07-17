@@ -1,10 +1,21 @@
-# Defaults for cgred initscript
-# sourced by /etc/init.d/cgred
-# installed at /etc/default/cgred by the maintainer scripts
-
+# /etc/default/cgred - CGroup Rules Engine Daemon configuration file
 #
-# This is a POSIX shell fragment
-#
+# The four options listed below (CONFIG_FILE, LOG_FILE, NODAEMON, LOG) are
+# the only valid ones.  Defining anything else in this file will cause the
+# CGroup Rules Engine program to fail.  So, don't do it.
 
-# Additional options that are passed to the Daemon.
-DAEMON_OPTS=""
+# The pathname to the configuration file for CGroup Rules Engine
+CONFIG_FILE="/etc/cgrules.conf"
+
+# Uncomment the following line to log to specified file instead of syslog
+#LOG_FILE="/var/log/cgrulesengd.log"
+
+# Uncomment the second line to run CGroup Rules Engine in non-daemon mode
+NODAEMON=""
+#NODAEMON="--nodaemon"
+
+# Uncomment the second line to disable logging for CGroup Rules Engine
+# Uncomment the third line to enable more verbose logging.
+LOG=""
+#LOG="--nolog"
+#LOG="-v"
