@@ -110,9 +110,8 @@ License:
 As a result of the dual license, the upstream authors wish to release this work
 under the GNU General Public License version 2.
 
-On Debian systems, the complete text of the BSD License can be found in
-`/usr/share/common-licenses/BSD' and the complete text of the GNU General
-Public License version 2 can be found in `/usr/share/common-licenses/GPL-2'.
+On Debian systems, the complete text of the GNU General Public License
+version 2 can be found in `/usr/share/common-licenses/GPL-2'.
 
 The Debian packaging is:
 
