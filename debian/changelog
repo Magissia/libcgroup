@@ -1,3 +1,16 @@
+libcgroup (0.36.2-2) unstable; urgency=low
+
+  * [ae0921] Replace sysconfig with default in cgconfig initscript patch
+    (Closes: #588494)
+  * [412460] Fix config file reference in cgred initscript patch
+  * [3822c1] Update cgred default configuration file
+  * [17fdaf] Add cgconfig default configuration file
+  * [577ac2] Bump standards version to 3.9.0, no changes necessary
+  * [f28c7d] Fix typo in copyright file
+  * [14244b] Remove redundant reference to BSD license in copyright file
+
+ -- Jon Bernard <jbernard@debian.org>  Sun, 18 Jul 2010 09:41:48 -0400
+
 libcgroup (0.36.2-1) unstable; urgency=low
 
   * [df1c38] Imported Upstream version 0.36.2
