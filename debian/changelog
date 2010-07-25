@@ -1,3 +1,10 @@
+libcgroup (0.36.2-3) unstable; urgency=low
+
+  * [a1bd2b] Add device controller to the default configuration
+    (LP: #607849) - thanks to Serge Hallyn
+
+ -- Jon Bernard <jbernard@debian.org>  Sun, 25 Jul 2010 16:51:29 -0400
+
 libcgroup (0.36.2-2) unstable; urgency=low
 
   * [ae0921] Replace sysconfig with default in cgconfig initscript patch
