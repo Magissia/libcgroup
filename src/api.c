@@ -116,13 +116,15 @@ const char const *cgroup_strerror_codes[] = {
 	"Have multiple paths for the same namespace",
 	"Controller in namespace does not exist",
 	"Cannot have mount and namespace keyword in the same configuration file",
+	"This kernel does not support this feature",
+	"Value setting does not succeed",
 };
 
 static int cg_chown_file(FTS *fts, FTSENT *ent, uid_t owner, gid_t group)
 {
 	int ret = 0;
 	const char *filename = fts->fts_path;
-	cgroup_dbg("seeing file %s\n", filename);
+	cgroup_dbg("chown: seeing file %s\n", filename);
 	switch (ent->fts_info) {
 	case FTS_ERR:
 		errno = ent->fts_errno;
@@ -133,22 +135,11 @@ static int cg_chown_file(FTS *fts, FTSENT *ent, uid_t owner, gid_t group)
 	case FTS_NS:
 	case FTS_DNR:
 	case FTS_DP:
-		ret = chown(filename, owner, group);
-		if (ret)
-			goto fail_chown;
-		ret = chmod(filename, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP |
-					S_IWGRP | S_IXGRP | S_IROTH | S_IXOTH);
-		break;
 	case FTS_F:
 	case FTS_DEFAULT:
 		ret = chown(filename, owner, group);
-		if (ret)
-			goto fail_chown;
-		ret = chmod(filename, S_IRUSR | S_IWUSR |  S_IRGRP |
-						S_IWGRP | S_IROTH);
 		break;
 	}
-fail_chown:
 	if (ret < 0) {
 		last_errno = errno;
 		ret = ECGOTHER;
@@ -164,9 +155,13 @@ static int cg_chown_recursive(char **path, uid_t owner, gid_t group)
 	int ret = 0;
 	FTS *fts;
 
-	cgroup_dbg("path is %s\n", *path);
+	cgroup_dbg("chown: path is %s\n", *path);
 	fts = fts_open(path, FTS_PHYSICAL | FTS_NOCHDIR |
 				FTS_NOSTAT, NULL);
+	if (fts == NULL) {
+		last_errno = errno;
+		return ECGOTHER;
+	}
 	while (1) {
 		FTSENT *ent;
 		ent = fts_read(fts);
@@ -180,6 +175,95 @@ static int cg_chown_recursive(char **path, uid_t owner, gid_t group)
 	return ret;
 }
 
+int cg_chmod_file(FTS *fts, FTSENT *ent, mode_t dir_mode,
+	int dirm_change, mode_t file_mode, int filem_change)
+{
+	int ret = 0;
+	const char *filename = fts->fts_path;
+	cgroup_dbg("chmod: seeing file %s\n", filename);
+	switch (ent->fts_info) {
+	case FTS_ERR:
+		errno = ent->fts_errno;
+		break;
+	case FTS_D:
+	case FTS_DC:
+	case FTS_DNR:
+	case FTS_DP:
+		if (dirm_change)
+			ret = chmod(filename, dir_mode);
+		break;
+	case FTS_F:
+	case FTS_NSOK:
+	case FTS_NS:
+	case FTS_DEFAULT:
+		if (filem_change)
+			ret = chmod(filename, file_mode);
+		break;
+	}
+	if (ret < 0) {
+		last_errno = errno;
+		ret = ECGOTHER;
+	}
+	return ret;
+}
+
+
+/*
+ * TODO: Need to decide a better place to put this function.
+ */
+int cg_chmod_recursive(struct cgroup *cgroup, mode_t dir_mode,
+       int dirm_change, mode_t file_mode, int filem_change)
+{
+	int ret = 0;
+	int final_ret =0;
+	FTS *fts;
+	char *fts_path[2];
+	char *path = NULL;
+
+	fts_path[0] = (char *)malloc(FILENAME_MAX);
+	if (!fts_path[0]) {
+		last_errno = errno;
+		return ECGOTHER;
+	}
+	fts_path[1] = NULL;
+	path = fts_path[0];
+	cgroup_dbg("chmod: path is %s\n", path);
+
+	if (!cg_build_path(cgroup->name, path,
+			cgroup->controller[0]->name)) {
+		final_ret = ECGFAIL;
+		goto err;
+	}
+
+	fts = fts_open(fts_path, FTS_PHYSICAL | FTS_NOCHDIR |
+			FTS_NOSTAT, NULL);
+	if (fts == NULL) {
+		last_errno = errno;
+		final_ret = ECGOTHER;
+		goto err;
+	}
+	while (1) {
+		FTSENT *ent;
+		ent = fts_read(fts);
+		if (!ent) {
+			cgroup_dbg("fts_read failed\n");
+			break;
+		}
+		ret = cg_chmod_file(fts, ent, dir_mode, dirm_change,
+			file_mode, filem_change);
+		if (ret) {
+			last_errno = errno;
+			final_ret = ECGOTHER;
+		}
+	}
+	fts_close(fts);
+
+err:
+	free(fts_path[0]);
+	return final_ret;
+}
+
+
 static char *cgroup_basename(const char *path)
 {
 	char *base;
@@ -191,9 +275,6 @@ static char *cgroup_basename(const char *path)
 		return NULL;
 
 	base = strdup(basename(tmp_string));
-
-	if (!base)
-		return NULL;
 
 	free(tmp_string);
 
@@ -731,12 +812,7 @@ int cgroup_init(void)
 			if (!mntopt)
 				continue;
 
-			mntopt = strtok_r(mntopt, ",", &strtok_buffer);
-
-			if (strcmp(mntopt, controllers[i]))
-				continue;
-
-			cgroup_dbg("matched %s:%s\n", mntopt, controllers[i]);
+			cgroup_dbg("found %s in %s\n", controllers[i], ent->mnt_opts);
 
 			/* do not have duplicates in mount table */
 			duplicate = 0;
@@ -750,7 +826,7 @@ int cgroup_init(void)
 			if (duplicate) {
 				cgroup_dbg("controller %s is already mounted on %s\n",
 					mntopt, cg_mount_table[j].path);
-				continue;
+				break;
 			}
 
 			strcpy(cg_mount_table[found_mnt].name, controllers[i]);
@@ -1025,20 +1101,9 @@ int cgroup_attach_task(struct cgroup *cgroup)
 int cg_mkdir_p(const char *path)
 {
 	char *real_path = NULL;
-	char *wd = NULL;
-	int i = 0, j = 0;
+	int i = 0;
 	char pos;
-	char *str = NULL;
 	int ret = 0;
-	char cwd[FILENAME_MAX];
-	char *buf = NULL;
-
-	buf = getcwd(cwd, FILENAME_MAX);
-
-	if (!buf) {
-		last_errno = errno;
-		return ECGOTHER;
-	}
 
 	real_path = strdup(path);
 	if (!real_path) {
@@ -1047,23 +1112,16 @@ int cg_mkdir_p(const char *path)
 	}
 
 	do {
-		while (real_path[j] != '\0' && real_path[j] != '/')
-			j++;
-		while (real_path[j] != '\0' && real_path[j] == '/')
-			j++;
-		if (i == j)
-			continue;
-		pos = real_path[j];
-		real_path[j] = '\0';		/* Temporarily overwrite "/" */
-		str = &real_path[i];
-		ret = mkdir(str, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-		wd = strdup(str);
-		if (!wd) {
-			last_errno = errno;
-			ret = ECGOTHER;
-			break;
-		}
-		real_path[j] = pos;
+		while (real_path[i] != '\0' && real_path[i] == '/')
+			i++;
+		if (real_path[i] == '\0')
+			break; /* The path ends with '/', ignore it. */
+		while (real_path[i] != '\0' && real_path[i] != '/')
+			i++;
+		pos = real_path[i];
+		real_path[i] = '\0';		/* Temporarily overwrite "/" */
+		ret = mkdir(real_path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+		real_path[i] = pos;
 		if (ret) {
 			switch (errno) {
 			case EEXIST:
@@ -1071,30 +1129,13 @@ int cg_mkdir_p(const char *path)
 				break;
 			case EPERM:
 				ret = ECGROUPNOTOWNER;
-				free(wd);
 				goto done;
 			default:
 				ret = ECGROUPNOTALLOWED;
-				free(wd);
 				goto done;
 			}
 		}
-		i = j;
-		ret = chdir(wd);
-		if (ret) {
-			cgroup_dbg("could not chdir to child directory (%s)\n",
-				wd);
-			break;
-		}
-		free(wd);
 	} while (real_path[i]);
-
-	ret = chdir(buf);
-	if (ret) {
-		last_errno = errno;
-		ret = ECGOTHER;
-		cgroup_dbg("could not go back to old directory (%s)\n", cwd);
-	}
 
 done:
 	free(real_path);
@@ -1310,6 +1351,8 @@ err:
  *
  * returns 0 on success. We recommend calling cg_delete_cgroup
  * if this routine fails. That should do the cleanup operation.
+ * If ECGCANTSETVALUE is returned, the group was created successfully
+ * but not all controller parameters were successfully set.
  */
 int cgroup_create_cgroup(struct cgroup *cgroup, int ignore_ownership)
 {
@@ -1374,8 +1417,8 @@ int cgroup_create_cgroup(struct cgroup *cgroup, int ignore_ownership)
 		for (j = 0; j < cgroup->controller[k]->index; j++) {
 			ret = snprintf(path, FILENAME_MAX, "%s%s", base,
 					cgroup->controller[k]->values[j]->name);
-			cgroup_dbg("setting %s to %s, error %d\n", path,
-				cgroup->controller[k]->values[j]->name, ret);
+			cgroup_dbg("setting %s to \"%s\", pathlen %d\n", path,
+				cgroup->controller[k]->values[j]->value, ret);
 			if (ret < 0 || ret >= FILENAME_MAX) {
 				last_errno = errno;
 				error = ECGOTHER;
@@ -1390,10 +1433,15 @@ int cgroup_create_cgroup(struct cgroup *cgroup, int ignore_ownership)
 			 * are only conditionally created in the child.
 			 *
 			 * A middle ground would be to track that there
-			 * was an error and return that value.
+			 * was an error and return a diagnostic value--
+			 * callers don't get context for the error, but can
+			 * ignore it specifically if they wish.
 			 */
 			if (error) {
-				retval = error;
+				cgroup_dbg("failed to set %s: %s (%d)\n",
+					path,
+					cgroup_strerror(error), error);
+				retval = ECGCANTSETVALUE;
 				continue;
 			}
 		}
@@ -1428,8 +1476,55 @@ err:
 }
 
 /**
+ * Obtain the calculated parent name of specified cgroup; no validation
+ * of the existence of the child or parent group is performed.
+ *
+ * Given the path-like hierarchy of cgroup names, this function returns
+ * the dirname() of the cgroup name as the likely parent name; the caller
+ * is responsible for validating parent as appropriate.
+ *
+ * @param cgroup The cgroup to query for parent's name
+ * @param parent Output, name of parent's group, or NULL if the
+ * 	provided cgroup is the root group.
+ *	Caller is responsible to free the returned string.
+ * @return 0 on success, > 0 on error
+ */
+static int cgroup_get_parent_name(struct cgroup *cgroup, char **parent)
+{
+	int ret = 0;
+	char *dir = NULL;
+	char *pdir = NULL;
+
+	dir = strdup(cgroup->name);
+	if (!dir) {
+		return ECGFAIL;
+	}
+	cgroup_dbg("group name is %s\n", dir);
+
+	pdir = dirname(dir);
+	cgroup_dbg("parent's group name is %s\n", pdir);
+
+	/* check for root group */
+	if (strlen(cgroup->name) == 0 || !strcmp(cgroup->name, pdir)) {
+		cgroup_dbg("specified cgroup \"%s\" is root group\n",
+			cgroup->name);
+		*parent = NULL;
+	}
+	else {
+		*parent = strdup(pdir);
+		if (*parent == NULL)
+			ret = ECGFAIL;
+	}
+	free(dir);
+
+	return ret;
+}
+
+/**
  * Find the parent of the specified directory. It returns the parent (the
- * parent is usually name/.. unless name is a mount point.
+ * parent is usually name/.. unless name is a mount point.  It is assumed
+ * both the cgroup (and, therefore, parent) already exist, and will fail
+ * otherwise.
  *
  * @param cgroup The cgroup
  * @param parent Output, name of parent's group (if the group has parent) or
@@ -1443,10 +1538,15 @@ static int cgroup_find_parent(struct cgroup *cgroup, char **parent)
 	char *parent_path = NULL;
 	struct stat stat_child, stat_parent;
 	char *controller = NULL;
-	char *dir = NULL, *parent_dir = NULL;
 	int ret = 0;
 
 	*parent = NULL;
+
+	/* if cgroup has no controllers attached, consider it unconfigured */
+	if (cgroup->controller[0] == NULL) {
+		cgroup_dbg("cgroup_find_parent called on unconfigured group\n");
+		return ECGFAIL;
+	}
 
 	pthread_rwlock_rdlock(&cg_mount_table_lock);
 	controller = cgroup->controller[0]->name;
@@ -1483,20 +1583,7 @@ static int cgroup_find_parent(struct cgroup *cgroup, char **parent)
 		ret = 0;
 		cgroup_dbg("Parent is on different device\n");
 	} else {
-		dir = strdup(cgroup->name);
-		cgroup_dbg("group name is %s\n", dir);
-		if (!dir) {
-			ret = ECGFAIL;
-			goto free_parent;
-		}
-
-		parent_dir = dirname(dir);
-		cgroup_dbg("parent's group name is %s\n", parent_dir);
-		*parent = strdup(parent_dir);
-		free(dir);
-
-		if (*parent == NULL)
-			ret = ECGFAIL;
+		ret = cgroup_get_parent_name(cgroup, parent);
 	}
 
 free_parent:
@@ -1508,6 +1595,9 @@ free_parent:
  * @cgroup: cgroup data structure to be filled with parent values and then
  *	  passed down for creation
  * @ignore_ownership: Ignore doing a chown on the newly created cgroup
+ * @return 0 on success, > 0 on failure.  If  ECGCANTSETVALUE is returned,
+ * the group was created successfully, but not all controller parameters
+ * were copied from the parent successfully; unfortunately, this is expected...
  */
 int cgroup_create_cgroup_from_parent(struct cgroup *cgroup,
 					int ignore_ownership)
@@ -1519,7 +1609,7 @@ int cgroup_create_cgroup_from_parent(struct cgroup *cgroup,
 	if (!cgroup_initialized)
 		return ECGROUPNOTINITIALIZED;
 
-	ret = cgroup_find_parent(cgroup, &parent);
+	ret = cgroup_get_parent_name(cgroup, &parent);
 	if (ret)
 		return ret;
 
@@ -1533,16 +1623,21 @@ int cgroup_create_cgroup_from_parent(struct cgroup *cgroup,
 
 	cgroup_dbg("parent is %s\n", parent);
 	parent_cgroup = cgroup_new_cgroup(parent);
-	if (!parent_cgroup)
+	if (!parent_cgroup) {
+		ret = ECGFAIL;
 		goto err_nomem;
+	}
 
-	if (cgroup_get_cgroup(parent_cgroup))
+	if (cgroup_get_cgroup(parent_cgroup)) {
+		ret = ECGFAIL;
 		goto err_parent;
+	}
 
 	cgroup_dbg("got parent group for %s\n", parent_cgroup->name);
 	ret = cgroup_copy_cgroup(cgroup, parent_cgroup);
-	if (ret)
+	if (ret) {
 		goto err_parent;
+	}
 
 	cgroup_dbg("copied parent group %s to %s\n", parent_cgroup->name,
 							cgroup->name);
@@ -2112,6 +2207,7 @@ static int cg_prepare_cgroup(struct cgroup *cgroup, pid_t pid,
 
 	/* Scan all the controllers */
 	for (i = 0; i < CG_CONTROLLER_MAX; i++) {
+		int j = 0;
 		if (!controllers[i])
 			return 0;
 		controller = controllers[i];
@@ -2120,16 +2216,16 @@ static int cg_prepare_cgroup(struct cgroup *cgroup, pid_t pid,
 		 * controllers. */
 		if (strcmp(controller, "*") == 0) {
 			pthread_rwlock_rdlock(&cg_mount_table_lock);
-			for (i = 0; i < CG_CONTROLLER_MAX &&
-				cg_mount_table[i].name[0] != '\0'; i++) {
+			for (j = 0; j < CG_CONTROLLER_MAX &&
+				cg_mount_table[j].name[0] != '\0'; j++) {
 				cgroup_dbg("Adding controller %s\n",
-					cg_mount_table[i].name);
+					cg_mount_table[j].name);
 				cptr = cgroup_add_controller(cgroup,
-						cg_mount_table[i].name);
+						cg_mount_table[j].name);
 				if (!cptr) {
 					cgroup_dbg("Adding controller '%s'"
 						" failed\n",
-						cg_mount_table[i].name);
+						cg_mount_table[j].name);
 					pthread_rwlock_unlock(&cg_mount_table_lock);
 					cgroup_free_controllers(cgroup);
 					return ECGROUPNOTALLOWED;
@@ -2555,7 +2651,7 @@ int cgroup_get_current_controller_path(pid_t pid, const char *controller,
 		 * my daily life, I need some magic to help make them
 		 * disappear :)
 		 */
-		if (ret != 3 || ret == EOF) {
+		if (ret != 3) {
 			cgroup_dbg("read failed for pid_cgroup_fd ret %d\n",
 				ret);
 			last_errno = errno;
@@ -2735,9 +2831,14 @@ int cgroup_walk_tree_begin(const char *controller, const char *base_path,
 
 	entry->fts = fts_open(cg_path, FTS_LOGICAL | FTS_NOCHDIR |
 				FTS_NOSTAT, NULL);
+	if (entry->fts == NULL) {
+		last_errno = errno;
+		return ECGOTHER;
+	}
 	ent = fts_read(entry->fts);
 	if (!ent) {
 		cgroup_dbg("fts_read failed\n");
+		free(entry);
 		return ECGINVAL;
 	}
 	if (!*base_level && depth)
@@ -2784,8 +2885,10 @@ static int cg_read_stat(FILE *fp, struct cgroup_stat *cgroup_stat)
 	char *saveptr = NULL;
 
 	read_bytes = getline(&line, &len, fp);
-	if (read_bytes == -1)
-		return ECGEOF;
+	if (read_bytes == -1) {
+		ret = ECGEOF;
+		goto out_free;
+	}
 
 	token = strtok_r(line, " ", &saveptr);
 	if (!token) {
@@ -2803,8 +2906,83 @@ static int cg_read_stat(FILE *fp, struct cgroup_stat *cgroup_stat)
 
 out_free:
 	free(line);
+	return ret;
+}
+
+
+int cgroup_read_value_end(void **handle)
+{
+	FILE *fp;
+
+	if (!cgroup_initialized)
+		return ECGROUPNOTINITIALIZED;
+
+	if (!handle)
+		return ECGINVAL;
+
+	fp = (FILE *)*handle;
+	fclose(fp);
+
 	return 0;
 }
+
+int cgroup_read_value_next(void **handle, char *buffer, int max)
+{
+	int ret = 0;
+	char *ret_c;
+	FILE *fp;
+
+	if (!cgroup_initialized)
+		return ECGROUPNOTINITIALIZED;
+
+	if (!buffer || !handle)
+		return ECGINVAL;
+
+	fp = (FILE *)*handle;
+	ret_c = fgets(buffer, max, fp);
+	if (ret_c == NULL)
+		ret = ECGEOF;
+
+	return ret;
+}
+
+int cgroup_read_value_begin(const char *controller, const char *path,
+	char *name, void **handle, char *buffer, int max)
+{
+	int ret = 0;
+	char *ret_c = NULL;
+	char stat_file[FILENAME_MAX];
+	char stat_path[FILENAME_MAX];
+	FILE *fp;
+
+	if (!cgroup_initialized)
+		return ECGROUPNOTINITIALIZED;
+
+	if (!buffer || !handle)
+		return ECGINVAL;
+
+	if (!cg_build_path(path, stat_path, controller))
+		return ECGOTHER;
+
+	snprintf(stat_file, sizeof(stat_file), "%s/%s", stat_path,
+		name);
+	fp = fopen(stat_file, "re");
+	if (!fp) {
+		cgroup_dbg("fopen failed\n");
+		last_errno = errno;
+		*handle = NULL;
+		return ECGOTHER;
+	}
+
+	ret_c = fgets(buffer, max, fp);
+	if (ret_c == NULL)
+		ret = ECGEOF;
+
+	*handle = fp;
+	return ret;
+}
+
+
 
 int cgroup_read_stats_end(void **handle)
 {
@@ -2817,6 +2995,9 @@ int cgroup_read_stats_end(void **handle)
 		return ECGINVAL;
 
 	fp = (FILE *)*handle;
+	if (fp == NULL)
+		return ECGINVAL;
+
 	fclose(fp);
 	return 0;
 }
@@ -2846,6 +3027,7 @@ int cgroup_read_stats_begin(const char *controller, const char *path,
 {
 	int ret = 0;
 	char stat_file[FILENAME_MAX];
+	char stat_path[FILENAME_MAX];
 	FILE *fp;
 
 	if (!cgroup_initialized)
@@ -2854,10 +3036,11 @@ int cgroup_read_stats_begin(const char *controller, const char *path,
 	if (!cgroup_stat || !handle)
 		return ECGINVAL;
 
-	if (!cg_build_path(path, stat_file, controller))
+	if (!cg_build_path(path, stat_path, controller))
 		return ECGOTHER;
 
-	sprintf(stat_file, "%s/%s.stat", stat_file, controller);
+	snprintf(stat_file, sizeof(stat_file), "%s/%s.stat", stat_path,
+			controller);
 
 	fp = fopen(stat_file, "re");
 	if (!fp) {
@@ -3386,3 +3569,197 @@ int cgroup_get_all_controller_begin(void **handle, struct controller_data *info)
 
 	return cgroup_get_all_controller_next(handle, info);
 }
+
+static int pid_compare(const void *a, const void *b)
+{
+	const pid_t *pid1, *pid2;
+
+	pid1 = (pid_t *) a;
+	pid2 = (pid_t *) b;
+
+	return (*pid1 - *pid2);
+}
+
+/*
+ *pids needs to be completely uninitialized so that we can set it up
+ *
+ * Caller must free up pids.
+ */
+int cgroup_get_procs(char *name, char *controller, pid_t **pids, int *size)
+{
+	char cgroup_path[FILENAME_MAX];
+	FILE *procs;
+	pid_t *tmp_list;
+	int tot_procs = 16;
+	int n = 0;
+	int err;
+
+	cg_build_path(name, cgroup_path, controller);
+	strncat(cgroup_path, "/cgroup.procs", FILENAME_MAX-strlen(cgroup_path));
+
+	/*
+	 * This kernel does have support for cgroup.procs
+	 */
+	if (access(cgroup_path, F_OK))
+		return ECGROUPUNSUPP;
+
+	/*
+	 * Read all the procs and then sort them up.
+	 */
+
+	tmp_list = *pids;
+
+	/*
+	 * Keep doubling the memory allocated if needed
+	 */
+	tmp_list= malloc(sizeof(pid_t) * tot_procs);
+	if (!tmp_list) {
+		last_errno = errno;
+		return ECGOTHER;
+	}
+
+	procs = fopen(cgroup_path, "r");
+	if (!procs) {
+		last_errno = errno;
+		return ECGOTHER;
+	}
+
+	while (!feof(procs)) {
+		while (!feof(procs) && n < tot_procs) {
+			pid_t pid;
+			err = fscanf(procs, "%u", &pid);
+			if (err == EOF)
+				break;
+			tmp_list[n] = pid;
+			n++;
+		}
+		if (!feof(procs)) {
+			tot_procs *= 2;
+			tmp_list = realloc(tmp_list, sizeof(pid_t) * tot_procs);
+			if (!tmp_list) {
+				last_errno = errno;
+				return ECGOTHER;
+			}
+		}
+	}
+
+	*size = n;
+
+	qsort(tmp_list, n, sizeof(pid_t), &pid_compare);
+
+	*pids = tmp_list;
+
+	return 0;
+}
+
+
+int cgroup_dictionary_create(struct cgroup_dictionary **dict,
+		int flags)
+{
+	*dict = (struct cgroup_dictionary *) calloc(
+			1, sizeof(struct cgroup_dictionary));
+
+	if (!dict)
+		return ECGFAIL;
+	(*dict)->flags = flags;
+	return 0;
+}
+
+
+int cgroup_dictionary_add(struct cgroup_dictionary *dict,
+		const char *name, const char *value)
+{
+	struct cgroup_dictionary_item *it;
+
+	if (!dict)
+		return ECGINVAL;
+
+	it = (struct cgroup_dictionary_item *) malloc(
+			sizeof(struct cgroup_dictionary_item));
+	if (!it)
+		return ECGFAIL;
+
+	it->next = NULL;
+	it->name = name;
+	it->value = value;
+
+	if (dict->tail) {
+		dict->tail->next = it;
+		dict->tail = it;
+	} else {
+		/* it is the first item */
+		dict->tail = it;
+		dict->head = it;
+	}
+	return 0;
+}
+
+int cgroup_dictionary_free(struct cgroup_dictionary *dict)
+{
+	struct cgroup_dictionary_item *it;
+
+	if (!dict)
+		return ECGINVAL;
+
+	it = dict->head;
+	while (it) {
+		struct cgroup_dictionary_item *del = it;
+		it = it->next;
+		if (!(dict->flags & CG_DICT_DONT_FREE_ITEMS)) {
+			free((void *)del->value);
+			free((void *)del->name);
+		}
+		free(del);
+	}
+
+	free(dict);
+	return 0;
+}
+
+int cgroup_dictionary_iterator_begin(struct cgroup_dictionary *dict,
+		void **handle, const char **name, const char **value)
+{
+	struct cgroup_dictionary_iterator *iter;
+
+	*handle = NULL;
+
+	if (!dict)
+		return ECGINVAL;
+
+	iter = (struct cgroup_dictionary_iterator *) malloc(
+			sizeof(struct cgroup_dictionary_iterator));
+	if (!iter)
+		return ECGFAIL;
+
+	iter->item = dict->head;
+	*handle = iter;
+	return cgroup_dictionary_iterator_next(handle, name, value);
+}
+
+int cgroup_dictionary_iterator_next(void **handle,
+		const char **name, const char **value)
+{
+	struct cgroup_dictionary_iterator *iter;
+
+	if (!handle)
+		return ECGINVAL;
+
+	iter = *handle;
+	if (!iter->item)
+		return ECGEOF;
+
+	*name = iter->item->name;
+	*value = iter->item->value;
+	iter->item = iter->item->next;
+	return 0;
+}
+
+void cgroup_dictionary_iterator_end(void **handle)
+{
+	if (!handle)
+		return;
+
+	free(*handle);
+	*handle = NULL;
+}
+

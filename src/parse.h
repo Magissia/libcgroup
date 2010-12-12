@@ -70,11 +70,12 @@ typedef union YYSTYPE
 	char *name;
 	char chr;
 	int val;
+	struct cgroup_dictionary *values;
 
 
 
 /* Line 1676 of yacc.c  */
-#line 78 "parse.h"
+#line 79 "parse.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

@@ -52,6 +52,8 @@ if [ -e /etc/sysconfig/cgconfig ]; then
         . /etc/sysconfig/cgconfig
 fi
 
+RETVAL=0
+
 create_default_groups() {
         declare defaultcgroup
 
@@ -82,7 +84,7 @@ create_default_groups() {
         # Create the default group, ignore errors when the default group
         # already exists.
         #
-        cgcreate -g $controllers:$defaultcgroup 2>/dev/null
+        cgcreate -f 664 -d 775 -g $controllers:$defaultcgroup 2>/dev/null
 
         #
         # special rule for cpusets
@@ -107,17 +109,23 @@ start() {
 	if [ -f /var/lock/subsys/$servicename ]
         then
             log_warning_msg "lock file already exists"
-            return
+            return 0
         fi
 
         if [ $? -eq 0 ]
         then
+                if [ ! -s $CONFIG_FILE ]
+                then
+                    log_failure_msg $CONFIG_FILE "is not configured"
+                    return 6
+                fi
+
                 $CGCONFIGPARSER_BIN -l $CONFIG_FILE
                 retval=$?
                 if [ $retval -ne 0 ]
                 then
                     log_failure_msg "Failed to parse " $CONFIG_FILE
-                    return $retval
+                    return 1
                 fi
         fi
 
@@ -130,7 +138,7 @@ start() {
         if [ $retval -ne 0 ]
         then
             log_failure_msg "Failed to touch " /var/lock/subsys/$servicename
-            return $retval
+            return 1
         fi
         log_success_msg
         return 0
@@ -141,6 +149,7 @@ stop() {
     cgclear
     rm -f /var/lock/subsys/$servicename
     log_success_msg
+    return 0
 }
 
 trapped() {
@@ -152,7 +161,7 @@ trapped() {
 
 usage() {
     echo "$0 <start|stop|restart|condrestart|status>"
-    exit 1
+    exit 2
 }
 
 common() {
@@ -169,35 +178,44 @@ case $1 in
     'stop')
         common
         stop;
+        RETVAL=$?
         ;;
     'start')
         common
         start;
+        RETVAL=$?
         ;;
     'restart')
         common
 	stop
         start
+        RETVAL=$?
         ;;
     'reload')
         common
 	stop
         start
+        RETVAL=$?
         ;;
     'condrestart')
         if [ -f /var/lock/subsys/$servicename ] ; then
             stop
             start
+            RETVAL=$?
         fi
         ;;
     'status')
         if [ -f /var/lock/subsys/$servicename ] ; then
             echo "Running"
+            exit 0
         else
             echo "Stopped"
+            exit 3
         fi
 	;;
     *)
         usage
         ;;
 esac
+
+exit $RETVAL

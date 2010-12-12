@@ -152,11 +152,12 @@ typedef union YYSTYPE
 	char *name;
 	char chr;
 	int val;
+	struct cgroup_dictionary *values;
 
 
 
 /* Line 214 of yacc.c  */
-#line 160 "parse.c"
+#line 161 "parse.c"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -168,7 +169,7 @@ typedef union YYSTYPE
 
 
 /* Line 264 of yacc.c  */
-#line 172 "parse.c"
+#line 173 "parse.c"
 
 #ifdef short
 # undef short
@@ -464,9 +465,9 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,    54,    54,    58,    62,    67,    72,    93,   103,   113,
-     126,   133,   149,   155,   165,   178,   188,   201,   211,   223,
-     235,   248,   257,   268,   281,   290,   301
+       0,    56,    56,    60,    64,    69,    74,    95,   106,   117,
+     130,   145,   158,   164,   174,   187,   197,   210,   220,   232,
+     244,   257,   266,   277,   290,   299,   310
 };
 #endif
 
@@ -1410,7 +1411,7 @@ yyreduce:
         case 2:
 
 /* Line 1455 of yacc.c  */
-#line 55 "parse.y"
+#line 57 "parse.y"
     {
 		(yyval.val) = (yyvsp[(1) - (2)].val);
 	}
@@ -1419,7 +1420,7 @@ yyreduce:
   case 3:
 
 /* Line 1455 of yacc.c  */
-#line 59 "parse.y"
+#line 61 "parse.y"
     {
 		(yyval.val) = (yyvsp[(1) - (2)].val);
 	}
@@ -1428,7 +1429,7 @@ yyreduce:
   case 4:
 
 /* Line 1455 of yacc.c  */
-#line 63 "parse.y"
+#line 65 "parse.y"
     {
 		(yyval.val) = (yyvsp[(1) - (2)].val);
 	}
@@ -1437,7 +1438,7 @@ yyreduce:
   case 5:
 
 /* Line 1455 of yacc.c  */
-#line 67 "parse.y"
+#line 69 "parse.y"
     {
 		(yyval.val) = 1;
 	}
@@ -1446,7 +1447,7 @@ yyreduce:
   case 6:
 
 /* Line 1455 of yacc.c  */
-#line 73 "parse.y"
+#line 75 "parse.y"
     {
 		(yyval.val) = (yyvsp[(4) - (5)].val);
 		if ((yyval.val)) {
@@ -1469,9 +1470,10 @@ yyreduce:
   case 7:
 
 /* Line 1455 of yacc.c  */
-#line 94 "parse.y"
+#line 96 "parse.y"
     {
-		(yyval.val) = cgroup_config_parse_controller_options((yyvsp[(1) - (4)].name), (yyvsp[(3) - (4)].name));
+		(yyval.val) = cgroup_config_parse_controller_options((yyvsp[(1) - (4)].name), (yyvsp[(3) - (4)].values));
+		cgroup_dictionary_free((yyvsp[(3) - (4)].values));
 		if (!(yyval.val)) {
 			fprintf(stderr, "parsing failed at line number %d\n",
 				line_no);
@@ -1484,9 +1486,10 @@ yyreduce:
   case 8:
 
 /* Line 1455 of yacc.c  */
-#line 104 "parse.y"
+#line 107 "parse.y"
     {
-		(yyval.val) = cgroup_config_parse_controller_options((yyvsp[(2) - (5)].name), (yyvsp[(4) - (5)].name));
+		(yyval.val) = cgroup_config_parse_controller_options((yyvsp[(2) - (5)].name), (yyvsp[(4) - (5)].values));
+		cgroup_dictionary_free((yyvsp[(4) - (5)].values));
 		if (!(yyval.val)) {
 			fprintf(stderr, "parsing failed at line number %d\n",
 				line_no);
@@ -1499,7 +1502,7 @@ yyreduce:
   case 9:
 
 /* Line 1455 of yacc.c  */
-#line 114 "parse.y"
+#line 118 "parse.y"
     {
 		(yyval.val) = (yyvsp[(3) - (4)].val);
 		if (!(yyval.val)) {
@@ -1514,48 +1517,53 @@ yyreduce:
   case 10:
 
 /* Line 1455 of yacc.c  */
-#line 127 "parse.y"
+#line 131 "parse.y"
     {
-		(yyvsp[(1) - (4)].name) = realloc((yyvsp[(1) - (4)].name), strlen((yyvsp[(1) - (4)].name)) + strlen((yyvsp[(3) - (4)].name)) + 2);
-		(yyvsp[(1) - (4)].name) = strncat((yyvsp[(1) - (4)].name), " ", strlen(" "));
-		(yyval.name) = strncat((yyvsp[(1) - (4)].name), (yyvsp[(3) - (4)].name), strlen((yyvsp[(3) - (4)].name)));
-		free((yyvsp[(3) - (4)].name));
+		struct cgroup_dictionary *dict;
+		int ret;
+		ret = cgroup_dictionary_create(&dict, 0);
+		if (ret == 0)
+			ret = cgroup_dictionary_add(dict, (yyvsp[(1) - (4)].name), (yyvsp[(3) - (4)].name));
+		if (ret) {
+			fprintf(stderr, "parsing failed at line number %d:%s\n",
+				line_no, cgroup_strerror(ret));
+			(yyval.values) = NULL;
+			return ECGCONFIGPARSEFAIL;
+		}
+		(yyval.values) = dict;
 	}
     break;
 
   case 11:
 
 /* Line 1455 of yacc.c  */
-#line 134 "parse.y"
+#line 146 "parse.y"
     {
-		int len = 0;
-		if ((yyvsp[(1) - (5)].name))
-			len = strlen((yyvsp[(1) - (5)].name));
-		(yyvsp[(2) - (5)].name) = realloc((yyvsp[(2) - (5)].name), len + strlen((yyvsp[(2) - (5)].name)) + strlen((yyvsp[(4) - (5)].name)) + 3);
-		(yyvsp[(2) - (5)].name) = strncat((yyvsp[(2) - (5)].name), " ", strlen(" "));
-		(yyval.name) = strncat((yyvsp[(2) - (5)].name), (yyvsp[(4) - (5)].name), strlen((yyvsp[(4) - (5)].name)));
-		if ((yyvsp[(1) - (5)].name)) {
-			(yyvsp[(2) - (5)].name) = strncat((yyvsp[(2) - (5)].name), ":", strlen(":"));
-			(yyval.name) = strncat((yyvsp[(2) - (5)].name), (yyvsp[(1) - (5)].name), strlen((yyvsp[(1) - (5)].name)));
-			free((yyvsp[(1) - (5)].name));
+		int ret = 0;
+		ret = cgroup_dictionary_add((yyvsp[(1) - (5)].values), (yyvsp[(2) - (5)].name), (yyvsp[(4) - (5)].name));
+		if (ret != 0) {
+			fprintf(stderr, "parsing failed at line number %d: %s\n",
+				line_no, cgroup_strerror(ret));
+			(yyval.values) = NULL;
+			return ECGCONFIGPARSEFAIL;
 		}
-		free((yyvsp[(4) - (5)].name));
+		(yyval.values) = (yyvsp[(1) - (5)].values);
 	}
     break;
 
   case 12:
 
 /* Line 1455 of yacc.c  */
-#line 149 "parse.y"
+#line 158 "parse.y"
     {
-		(yyval.name) = NULL;
+		(yyval.values) = NULL;
 	}
     break;
 
   case 13:
 
 /* Line 1455 of yacc.c  */
-#line 156 "parse.y"
+#line 165 "parse.y"
     {
 		(yyval.val) = cgroup_config_group_task_perm((yyvsp[(1) - (4)].name), (yyvsp[(3) - (4)].name));
 		if (!(yyval.val)) {
@@ -1570,7 +1578,7 @@ yyreduce:
   case 14:
 
 /* Line 1455 of yacc.c  */
-#line 166 "parse.y"
+#line 175 "parse.y"
     {
 		(yyval.val) = (yyvsp[(1) - (5)].val) && cgroup_config_group_task_perm((yyvsp[(2) - (5)].name), (yyvsp[(4) - (5)].name));
 		if (!(yyval.val)) {
@@ -1585,7 +1593,7 @@ yyreduce:
   case 15:
 
 /* Line 1455 of yacc.c  */
-#line 179 "parse.y"
+#line 188 "parse.y"
     {
 		(yyval.val) = cgroup_config_group_admin_perm((yyvsp[(1) - (4)].name), (yyvsp[(3) - (4)].name));
 		if (!(yyval.val)) {
@@ -1600,7 +1608,7 @@ yyreduce:
   case 16:
 
 /* Line 1455 of yacc.c  */
-#line 189 "parse.y"
+#line 198 "parse.y"
     {
 		(yyval.val) = (yyvsp[(1) - (5)].val) && cgroup_config_group_admin_perm((yyvsp[(2) - (5)].name), (yyvsp[(4) - (5)].name));
 		if (!(yyval.val)) {
@@ -1615,7 +1623,7 @@ yyreduce:
   case 17:
 
 /* Line 1455 of yacc.c  */
-#line 202 "parse.y"
+#line 211 "parse.y"
     {
 		(yyval.val) = (yyvsp[(3) - (5)].val) && (yyvsp[(5) - (5)].val);
 		if (!(yyval.val)) {
@@ -1630,7 +1638,7 @@ yyreduce:
   case 18:
 
 /* Line 1455 of yacc.c  */
-#line 212 "parse.y"
+#line 221 "parse.y"
     {
 		(yyval.val) = (yyvsp[(3) - (5)].val) && (yyvsp[(5) - (5)].val);
 		if (!(yyval.val)) {
@@ -1645,7 +1653,7 @@ yyreduce:
   case 19:
 
 /* Line 1455 of yacc.c  */
-#line 224 "parse.y"
+#line 233 "parse.y"
     {
 		(yyval.val) = (yyvsp[(3) - (4)].val);
 		if (!(yyval.val)) {
@@ -1660,7 +1668,7 @@ yyreduce:
   case 20:
 
 /* Line 1455 of yacc.c  */
-#line 236 "parse.y"
+#line 245 "parse.y"
     {
 		(yyval.val) = (yyvsp[(3) - (4)].val);
 		if (!(yyval.val)) {
@@ -1675,7 +1683,7 @@ yyreduce:
   case 21:
 
 /* Line 1455 of yacc.c  */
-#line 249 "parse.y"
+#line 258 "parse.y"
     {
 		if (!cgroup_config_insert_into_mount_table((yyvsp[(1) - (4)].name), (yyvsp[(3) - (4)].name))) {
 			cgroup_config_cleanup_mount_table();
@@ -1689,7 +1697,7 @@ yyreduce:
   case 22:
 
 /* Line 1455 of yacc.c  */
-#line 258 "parse.y"
+#line 267 "parse.y"
     {
 		if (!cgroup_config_insert_into_mount_table((yyvsp[(2) - (5)].name), (yyvsp[(4) - (5)].name))) {
 			cgroup_config_cleanup_mount_table();
@@ -1703,7 +1711,7 @@ yyreduce:
   case 23:
 
 /* Line 1455 of yacc.c  */
-#line 269 "parse.y"
+#line 278 "parse.y"
     {
 		(yyval.val) = (yyvsp[(3) - (4)].val);
 		if (!(yyval.val)) {
@@ -1718,7 +1726,7 @@ yyreduce:
   case 24:
 
 /* Line 1455 of yacc.c  */
-#line 282 "parse.y"
+#line 291 "parse.y"
     {
 		if (!cgroup_config_insert_into_namespace_table((yyvsp[(1) - (4)].name), (yyvsp[(3) - (4)].name))) {
 			cgroup_config_cleanup_namespace_table();
@@ -1732,7 +1740,7 @@ yyreduce:
   case 25:
 
 /* Line 1455 of yacc.c  */
-#line 291 "parse.y"
+#line 300 "parse.y"
     {
 		if (!cgroup_config_insert_into_namespace_table((yyvsp[(2) - (5)].name), (yyvsp[(4) - (5)].name))) {
 			cgroup_config_cleanup_namespace_table();
@@ -1746,7 +1754,7 @@ yyreduce:
   case 26:
 
 /* Line 1455 of yacc.c  */
-#line 302 "parse.y"
+#line 311 "parse.y"
     {
 		(yyval.val) = (yyvsp[(3) - (4)].val);
 		if (!(yyval.val)) {
@@ -1761,7 +1769,7 @@ yyreduce:
 
 
 /* Line 1455 of yacc.c  */
-#line 1765 "parse.c"
+#line 1773 "parse.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -1973,6 +1981,6 @@ yyreturn:
 
 
 /* Line 1675 of yacc.c  */
-#line 313 "parse.y"
+#line 322 "parse.y"
 
 

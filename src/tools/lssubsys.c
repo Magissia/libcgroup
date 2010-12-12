@@ -22,7 +22,8 @@
 enum flag{
     FL_MOUNT = 1,	/* show the mount points */
     FL_LIST = 2,
-    FL_ALL = 4		/* show all subsystems - not mounted too */
+    FL_ALL = 4,		/* show all subsystems - not mounted too */
+    FL_HIERARCHY = 8	/* show info about hierarchies */
 };
 
 typedef char cont_name_t[FILENAME_MAX];
@@ -36,11 +37,18 @@ static void usage(int status, const char *program_name)
 	} else {
 		fprintf(stdout, "Usage: %s [-m] [controller] [...]\n",
 			program_name);
-		fprintf(stdout, "list all sybsystems of given controller\n");
+		fprintf(stdout, "Usage: %s -a [-m] \n",
+			program_name);
+		fprintf(stdout, "List information about given controller(s). "\
+			"If no controller is set list information about "\
+			"all mounted controllers.\n");
 		fprintf(stdout, "  -h, --help		Display this help\n");
 		fprintf(stdout, "  -m, --mount-points	Display mount points\n");
-		fprintf(stdout, "  -a, --all		");
-		fprintf(stdout, "Display all not mounted subsystems\n");
+		fprintf(stdout, "  -a, --all		"\
+			"Display information about all controllers "\
+			"(including not mounted ones) \n");
+		fprintf(stdout, "  -i, --hierarchies	Display information "\
+			"about hierarchies\n");
 	}
 }
 
@@ -55,6 +63,11 @@ static int print_controller(cont_name_t cont_name, int flags)
 	int output = 0;
 
 	ret = cgroup_get_controller_begin(&handle, &controller);
+	if (ret != 0) {
+		fprintf(stderr, "cannot read controller data: %s\n",
+			cgroup_strerror(ret));
+		return ret;
+	}
 
 	path[0] = '\0';
 	name[0] = '\0';
@@ -163,27 +176,138 @@ static int cgroup_list_controllers(const char *tname,
 	return final_ret;
 }
 
-static int cgroup_list_all_controllers(const char *tname)
+/* display all controllers attached to the given hierarchy */
+static int print_all_controllers_in_hierarchy(const char *tname,
+	int hierarchy, int flags)
 {
 	int ret = 0;
 	void *handle;
 	struct controller_data info;
+	int first = 1;
+	cont_name_t cont_name;
+	int init = 1;
+
+	/* initialize libcgroup */
+	ret = cgroup_init();
+	if (ret) {
+		/*
+		 * if the group is not initialised we assume
+		 * no mount points are available
+		 */
+		init = 0;
+	}
 
 	ret = cgroup_get_all_controller_begin(&handle, &info);
+	if ((ret != 0) && (ret != ECGEOF)) {
+		fprintf(stderr, "cannot read controller data: %s\n",
+			cgroup_strerror(ret));
+		return ret;
+	}
 
 	while (ret != ECGEOF) {
-		if (info.hierarchy == 0)
-			printf("%s\n", info.name);
+		/* controller is in the hierrachy */
+		if (info.hierarchy != hierarchy)
+			goto next;
+
+		/* the first controller in the hierrachy*/
+		if (first) {
+			/*
+			 * if mounted flag is set then
+			 * test whether it is mounted
+			 */
+			if ((flags & FL_MOUNT) && (init == 1)) {
+				memset(cont_name, 0, FILENAME_MAX);
+				strncpy(cont_name, info.name,
+					FILENAME_MAX-1);
+
+				ret = print_controller(cont_name,
+					flags + FL_LIST);
+				/*
+				 * mount point was found,
+				 * output is done
+				 */
+				if (ret == 0) {
+					cgroup_get_all_controller_end(
+						&handle);
+					return 0;
+				}
+			}
+			printf("%s", info.name);
+			first = 0;
+		} else
+			printf(",%s", info.name);
+
+next:
 		ret = cgroup_get_all_controller_next(&handle, &info);
 		if (ret && ret != ECGEOF) {
 			fprintf(stderr,
 				"%s: cgroup_get_controller_next failed (%s)\n",
 				tname, cgroup_strerror(ret));
+			cgroup_get_all_controller_end(&handle);
+			return ret;
+		}
+	}
+
+	cgroup_get_all_controller_end(&handle);
+	if (flags & FL_HIERARCHY)
+		printf(" %d\n", hierarchy);
+	else
+		printf("\n");
+
+	if (ret == ECGEOF)
+		ret = 0;
+
+	return ret;
+}
+
+/* go through the list of all controllers gather them based on hierarchy number
+ and print them */
+static int cgroup_list_all_controllers(const char *tname, int flags)
+{
+	int ret = 0;
+	void *handle;
+	struct controller_data info;
+
+	int h_list[CG_CONTROLLER_MAX];	/* list of hierarchies */
+	int counter = 0;
+	int j;
+
+	ret = cgroup_get_all_controller_begin(&handle, &info);
+
+	while (ret != ECGEOF) {
+		if (info.hierarchy == 0) {
+			/* the controller is not attached to any hierrachy */
+			printf("%s\n", info.name);
+		} else {
+			/* the controller is attached to some hierarchy */
+			h_list[counter] = info.hierarchy;
+			counter++;
+			for (j = 0; j < counter-1; j++) {
+				/*
+				 * the hierarchy already was on the list
+				 * so remove the new record
+				 */
+				if (h_list[j] == info.hierarchy) {
+					counter--;
+					break;
+				}
+			}
+		}
+
+		ret = cgroup_get_all_controller_next(&handle, &info);
+		if (ret && ret != ECGEOF) {
+			fprintf(stderr,
+				"cgroup_get_controller_next failed (%s)\n",
+				cgroup_strerror(ret));
 			return ret;
 		}
 	}
 
 	ret = cgroup_get_all_controller_end(&handle);
+
+	for (j = 0; j < counter; j++)
+		ret = print_all_controllers_in_hierarchy(tname,
+			h_list[j], flags);
 
 	return ret;
 
@@ -205,6 +329,7 @@ int main(int argc, char *argv[])
 		{"help", 0, 0, 'h'},
 		{"mount-points", 0, 0, 'm'},
 		{"all", 0, 0, 'a'},
+		{"hierarchies", 0, 0, 'i'},
 		{0, 0, 0, 0}
 	};
 
@@ -212,7 +337,7 @@ int main(int argc, char *argv[])
 		cont_name[i][0] = '\0';
 
 	/* parse arguments */
-	while ((c = getopt_long(argc, argv, "mha", options, NULL)) > 0) {
+	while ((c = getopt_long(argc, argv, "mhai", options, NULL)) > 0) {
 		switch (c) {
 		case 'h':
 			usage(0, argv[0]);
@@ -223,6 +348,9 @@ int main(int argc, char *argv[])
 		case 'a':
 			flags |= FL_ALL;
 			break;
+		case 'i':
+			flags |= FL_HIERARCHY;
+			break;
 		default:
 			usage(1, argv[0]);
 			return -1;
@@ -231,28 +359,27 @@ int main(int argc, char *argv[])
 
 	/* read the list of controllers */
 	while (optind < argc) {
-
+		if (flags & FL_ALL) {
+			fprintf(stderr, "Warning: too many parameters\n");
+			break;
+		}
 		flags |= FL_LIST;
 		strncpy(cont_name[c_number], argv[optind], FILENAME_MAX);
 		cont_name[c_number][FILENAME_MAX-1] = '\0';
 		c_number++;
 		optind++;
 		if (optind == CG_CONTROLLER_MAX) {
-			fprintf(stderr, "too much parameters\n");
+			fprintf(stderr, "Warning: too many parameters\n");
 			break;
 		}
 	}
 
-	/*
-	 * print the information
-	 * based on list of input controllers and flags
-	 */
-	ret = cgroup_list_controllers(argv[0], cont_name, flags);
-	if (ret)
-		return ret;
-
 	if (flags & FL_ALL)
-		ret = cgroup_list_all_controllers(argv[0]);
+		/* print the information about all controllers */
+		ret = cgroup_list_all_controllers(argv[0], flags);
+	else
+		/* print information about mounted controllers */
+		ret = cgroup_list_controllers(argv[0], cont_name, flags);
 
 	return ret;
 }

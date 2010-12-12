@@ -39,7 +39,7 @@ noinst_PROGRAMS = libcgrouptest01$(EXEEXT) libcg_ba$(EXEEXT) \
 	read_stats$(EXEEXT) walk_task$(EXEEXT) get_controller$(EXEEXT) \
 	get_mount_point$(EXEEXT) proctest$(EXEEXT) \
 	get_all_controller$(EXEEXT) get_variable_names$(EXEEXT) \
-	test_named_hierarchy$(EXEEXT)
+	test_named_hierarchy$(EXEEXT) get_procs$(EXEEXT)
 subdir = tests
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -67,6 +67,10 @@ am_get_mount_point_OBJECTS = get_mount_point.$(OBJEXT)
 get_mount_point_OBJECTS = $(am_get_mount_point_OBJECTS)
 get_mount_point_LDADD = $(LDADD)
 get_mount_point_DEPENDENCIES = $(top_builddir)/src/.libs/libcgroup.la
+am_get_procs_OBJECTS = get_procs.$(OBJEXT)
+get_procs_OBJECTS = $(am_get_procs_OBJECTS)
+get_procs_LDADD = $(LDADD)
+get_procs_DEPENDENCIES = $(top_builddir)/src/.libs/libcgroup.la
 am_get_variable_names_OBJECTS = get_variable_names.$(OBJEXT)
 get_variable_names_OBJECTS = $(am_get_variable_names_OBJECTS)
 get_variable_names_LDADD = $(LDADD)
@@ -153,17 +157,19 @@ AM_V_GEN = $(am__v_GEN_$(V))
 am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
 am__v_GEN_0 = @echo "  GEN   " $@;
 SOURCES = $(get_all_controller_SOURCES) $(get_controller_SOURCES) \
-	$(get_mount_point_SOURCES) $(get_variable_names_SOURCES) \
-	$(libcg_ba_SOURCES) $(libcgrouptest01_SOURCES) \
-	$(pathtest_SOURCES) $(proctest_SOURCES) $(read_stats_SOURCES) \
-	$(setuid_SOURCES) $(test_named_hierarchy_SOURCES) \
-	$(walk_task_SOURCES) $(walk_test_SOURCES)
+	$(get_mount_point_SOURCES) $(get_procs_SOURCES) \
+	$(get_variable_names_SOURCES) $(libcg_ba_SOURCES) \
+	$(libcgrouptest01_SOURCES) $(pathtest_SOURCES) \
+	$(proctest_SOURCES) $(read_stats_SOURCES) $(setuid_SOURCES) \
+	$(test_named_hierarchy_SOURCES) $(walk_task_SOURCES) \
+	$(walk_test_SOURCES)
 DIST_SOURCES = $(get_all_controller_SOURCES) $(get_controller_SOURCES) \
-	$(get_mount_point_SOURCES) $(get_variable_names_SOURCES) \
-	$(libcg_ba_SOURCES) $(libcgrouptest01_SOURCES) \
-	$(pathtest_SOURCES) $(proctest_SOURCES) $(read_stats_SOURCES) \
-	$(setuid_SOURCES) $(test_named_hierarchy_SOURCES) \
-	$(walk_task_SOURCES) $(walk_test_SOURCES)
+	$(get_mount_point_SOURCES) $(get_procs_SOURCES) \
+	$(get_variable_names_SOURCES) $(libcg_ba_SOURCES) \
+	$(libcgrouptest01_SOURCES) $(pathtest_SOURCES) \
+	$(proctest_SOURCES) $(read_stats_SOURCES) $(setuid_SOURCES) \
+	$(test_named_hierarchy_SOURCES) $(walk_task_SOURCES) \
+	$(walk_test_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 am__tty_colors = \
@@ -311,6 +317,7 @@ proctest_SOURCES = proctest.c
 get_all_controller_SOURCES = get_all_controller.c
 get_variable_names_SOURCES = get_variable_names.c
 test_named_hierarchy_SOURCES = test_named_hierarchy.c
+get_procs_SOURCES = get_procs.c
 EXTRA_DIST = pathtest.sh runlibcgrouptest.sh
 TESTS = runlibcgrouptest.sh
 all: all-am
@@ -365,6 +372,9 @@ get_controller$(EXEEXT): $(get_controller_OBJECTS) $(get_controller_DEPENDENCIES
 get_mount_point$(EXEEXT): $(get_mount_point_OBJECTS) $(get_mount_point_DEPENDENCIES) 
 	@rm -f get_mount_point$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(get_mount_point_OBJECTS) $(get_mount_point_LDADD) $(LIBS)
+get_procs$(EXEEXT): $(get_procs_OBJECTS) $(get_procs_DEPENDENCIES) 
+	@rm -f get_procs$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(get_procs_OBJECTS) $(get_procs_LDADD) $(LIBS)
 get_variable_names$(EXEEXT): $(get_variable_names_OBJECTS) $(get_variable_names_DEPENDENCIES) 
 	@rm -f get_variable_names$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(get_variable_names_OBJECTS) $(get_variable_names_LDADD) $(LIBS)
@@ -405,6 +415,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/get_all_controller.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/get_controller.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/get_mount_point.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/get_procs.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/get_variable_names.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcg_ba.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcgrouptest01.Po@am__quote@

@@ -121,17 +121,17 @@ int cgroup_config_insert_cgroup(char *cg_name)
  * entry in the cgroup_table. The index is incremented in
  * cgroup_config_insert_cgroup
  */
-int cgroup_config_parse_controller_options(char *controller, char *name_value)
+int cgroup_config_parse_controller_options(char *controller,
+	struct cgroup_dictionary *values)
 {
-	char *buffer = NULL;
-	char *name, *value;
+	const char *name, *value;
 	struct cgroup_controller *cgc;
 	int error;
 	struct cgroup *config_cgroup =
 		&config_cgroup_table[cgroup_table_index];
-	char *nm_pairs, *nv_buf;
+	void *iter = NULL;
 
-	cgroup_dbg("Adding controller %s, value %s\n", controller, name_value);
+	cgroup_dbg("Adding controller %s\n", controller);
 	cgc = cgroup_add_controller(config_cgroup, controller);
 
 	if (!cgc)
@@ -141,56 +141,33 @@ int cgroup_config_parse_controller_options(char *controller, char *name_value)
 	 * Did we just specify the controller to create the correct
 	 * set of directories, without setting any values?
 	 */
-	if (!name_value)
+	if (!values)
 		goto done;
 
-	nm_pairs = strtok_r(name_value, ":", &nv_buf);
-	cgroup_dbg("[1] name value pair being processed is %s\n", nm_pairs);
-
-	name = strtok_r(nm_pairs, " ", &buffer);
-
-	if (!name)
-		goto parse_error;
-
-	value = strtok_r(NULL, " ", &buffer);
-
-	if (!value)
-		goto parse_error;
-
-	cgroup_dbg("name is %s, value is %s\n", name, value);
-	error = cgroup_add_value_string(cgc, name, value);
-
-	if (error)
-		goto parse_error;
-
-	while ((nm_pairs = strtok_r(NULL, ":", &nv_buf))) {
-		cgroup_dbg("[2] name value pair being processed is %s\n",
-			nm_pairs);
-		name = strtok_r(nm_pairs, " ", &buffer);
-
+	error = cgroup_dictionary_iterator_begin(values, &iter, &name, &value);
+	while (error == 0) {
+		cgroup_dbg("[1] name value pair being processed is %s=%s\n",
+				name, value);
 		if (!name)
 			goto parse_error;
-
-		value = strtok_r(NULL, " ", &buffer);
-
-		if (!value)
-			goto parse_error;
-
-		cgroup_dbg("name is %s, value is %s\n", name, value);
 		error = cgroup_add_value_string(cgc, name, value);
-
 		if (error)
 			goto parse_error;
+		error = cgroup_dictionary_iterator_next(&iter, &name, &value);
 	}
+	cgroup_dictionary_iterator_end(&iter);
+	iter = NULL;
+
+	if (error != ECGEOF)
+		goto parse_error;
 
 done:
 	free(controller);
-	free(name_value);
 	return 1;
 
 parse_error:
 	free(controller);
-	free(name_value);
+	cgroup_dictionary_iterator_end(&iter);
 	cgroup_delete_cgroup(config_cgroup, 1);
 	cgroup_table_index--;
 	return 0;
@@ -465,16 +442,20 @@ static int cgroup_config_create_groups(void)
  */
 static int cgroup_config_destroy_groups(void)
 {
-	int error = 0;
+	int error = 0, ret = 0;
 	int i;
 
 	for (i = 0; i < cgroup_table_index; i++) {
 		struct cgroup *cgroup = &config_cgroup_table[i];
-		error = cgroup_delete_cgroup(cgroup, 0);
-		if (error)
-			return error;
+		error = cgroup_delete_cgroup_ext(cgroup,
+				CGFLAG_DELETE_RECURSIVE
+				| CGFLAG_DELETE_IGNORE_MIGRATION);
+		if (error) {
+			/* store the error, but continue deleting the rest */
+			ret = error;
+		}
 	}
-	return error;
+	return ret;
 }
 
 /*
@@ -769,12 +750,6 @@ static int cgroup_config_unload_controller(const struct cgroup_mount_point *moun
 		last_errno = errno;
 		ret = ECGOTHER;
 		goto out_error;
-	}
-
-	error = rmdir(mount_info->path);
-	if (error) {
-		last_errno = errno;
-		ret = ECGOTHER;
 	}
 
 out_error:
