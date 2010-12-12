@@ -37,7 +37,8 @@ host_triplet = @host@
 @WITH_TOOLS_TRUE@bin_PROGRAMS = cgexec$(EXEEXT) cgclassify$(EXEEXT) \
 @WITH_TOOLS_TRUE@	cgcreate$(EXEEXT) cgset$(EXEEXT) \
 @WITH_TOOLS_TRUE@	cgget$(EXEEXT) cgdelete$(EXEEXT) \
-@WITH_TOOLS_TRUE@	lssubsys$(EXEEXT) lscgroup$(EXEEXT)
+@WITH_TOOLS_TRUE@	lssubsys$(EXEEXT) lscgroup$(EXEEXT) \
+@WITH_TOOLS_TRUE@	cgsnapshot$(EXEEXT)
 @WITH_TOOLS_TRUE@sbin_PROGRAMS = cgconfigparser$(EXEEXT) \
 @WITH_TOOLS_TRUE@	cgclear$(EXEEXT)
 subdir = src/tools
@@ -102,6 +103,11 @@ am__cgset_SOURCES_DIST = cgset.c tools-common.c tools-common.h
 cgset_OBJECTS = $(am_cgset_OBJECTS)
 cgset_LDADD = $(LDADD)
 cgset_DEPENDENCIES = $(top_builddir)/src/.libs/libcgroup.la
+am__cgsnapshot_SOURCES_DIST = cgsnapshot.c
+@WITH_TOOLS_TRUE@am_cgsnapshot_OBJECTS = cgsnapshot.$(OBJEXT)
+cgsnapshot_OBJECTS = $(am_cgsnapshot_OBJECTS)
+cgsnapshot_LDADD = $(LDADD)
+cgsnapshot_DEPENDENCIES = $(top_builddir)/src/.libs/libcgroup.la
 am__lscgroup_SOURCES_DIST = tools-common.c lscgroup.c
 @WITH_TOOLS_TRUE@am_lscgroup_OBJECTS = tools-common.$(OBJEXT) \
 @WITH_TOOLS_TRUE@	lscgroup.$(OBJEXT)
@@ -142,13 +148,14 @@ am__v_GEN_0 = @echo "  GEN   " $@;
 SOURCES = $(cgclassify_SOURCES) $(cgclear_SOURCES) \
 	$(cgconfigparser_SOURCES) $(cgcreate_SOURCES) \
 	$(cgdelete_SOURCES) $(cgexec_SOURCES) $(cgget_SOURCES) \
-	$(cgset_SOURCES) $(lscgroup_SOURCES) $(lssubsys_SOURCES)
+	$(cgset_SOURCES) $(cgsnapshot_SOURCES) $(lscgroup_SOURCES) \
+	$(lssubsys_SOURCES)
 DIST_SOURCES = $(am__cgclassify_SOURCES_DIST) \
 	$(am__cgclear_SOURCES_DIST) $(am__cgconfigparser_SOURCES_DIST) \
 	$(am__cgcreate_SOURCES_DIST) $(am__cgdelete_SOURCES_DIST) \
 	$(am__cgexec_SOURCES_DIST) $(am__cgget_SOURCES_DIST) \
-	$(am__cgset_SOURCES_DIST) $(am__lscgroup_SOURCES_DIST) \
-	$(am__lssubsys_SOURCES_DIST)
+	$(am__cgset_SOURCES_DIST) $(am__cgsnapshot_SOURCES_DIST) \
+	$(am__lscgroup_SOURCES_DIST) $(am__lssubsys_SOURCES_DIST)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -291,6 +298,7 @@ LDADD = $(top_builddir)/src/.libs/libcgroup.la
 @WITH_TOOLS_TRUE@cgdelete_SOURCES = cgdelete.c tools-common.c tools-common.h
 @WITH_TOOLS_TRUE@lssubsys_SOURCES = lssubsys.c
 @WITH_TOOLS_TRUE@lscgroup_SOURCES = tools-common.c lscgroup.c
+@WITH_TOOLS_TRUE@cgsnapshot_SOURCES = cgsnapshot.c
 all: all-am
 
 .SUFFIXES:
@@ -435,6 +443,9 @@ cgget$(EXEEXT): $(cgget_OBJECTS) $(cgget_DEPENDENCIES)
 cgset$(EXEEXT): $(cgset_OBJECTS) $(cgset_DEPENDENCIES) 
 	@rm -f cgset$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(cgset_OBJECTS) $(cgset_LDADD) $(LIBS)
+cgsnapshot$(EXEEXT): $(cgsnapshot_OBJECTS) $(cgsnapshot_DEPENDENCIES) 
+	@rm -f cgsnapshot$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(cgsnapshot_OBJECTS) $(cgsnapshot_LDADD) $(LIBS)
 lscgroup$(EXEEXT): $(lscgroup_OBJECTS) $(lscgroup_DEPENDENCIES) 
 	@rm -f lscgroup$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(lscgroup_OBJECTS) $(lscgroup_LDADD) $(LIBS)
@@ -456,6 +467,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cgexec.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cgget.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cgset.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cgsnapshot.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lscgroup.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lssubsys.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tools-common.Po@am__quote@

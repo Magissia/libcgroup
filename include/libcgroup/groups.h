@@ -175,6 +175,8 @@ void cgroup_free_controllers(struct cgroup *cgroup);
  * @param ignore_ownership When nozero, all errors are ignored when setting
  * 	owner of the group and/or its tasks file.
  * 	@todo what is ignore_ownership good for?
+ * @retval #ECGROUPNOTEQUAL if not all specified controller parameters
+ *      were successfully set.
  */
 int cgroup_create_cgroup(struct cgroup *cgroup, int ignore_ownership);
 
@@ -196,6 +198,8 @@ int cgroup_create_cgroup(struct cgroup *cgroup, int ignore_ownership);
  * @param ignore_ownership When nozero, all errors are ignored when setting
  * 	owner of the group and/or its tasks file.
  * 	@todo what is ignore_ownership good for?
+ * @retval #ECGROUPNOTEQUAL if not all inherited controller parameters
+ *      were successfully set (this is expected).
  */
 int cgroup_create_cgroup_from_parent(struct cgroup *cgroup,
 		int ignore_ownership);
@@ -503,6 +507,27 @@ int cgroup_get_value_name_count(struct cgroup_controller *controller);
  */
 char *cgroup_get_value_name(struct cgroup_controller *controller, int index);
 
+/**
+ * Get the list of process in a cgroup. This list is guaranteed to
+ * be sorted. It is not necessary that it is unique.
+ * @param name The name of the cgroup
+ * @param controller The name of the controller
+ * @param pids The list of pids. Should be uninitialized when passed
+ * to the API. Should be freed by the caller using free.
+ * @param size The size of the pids array returned by the API.
+ */
+int cgroup_get_procs(char *name, char *controller, pid_t **pids, int *size);
+
+/**
+ * Change permission of files and directories of given group
+ * @param cgroup The cgroup which permissions should be changed
+ * @param dir_mode The permission mode of group directory
+ * @param dirm_change Denotes whether the directory change should be done
+ * @param file_mode The permission mode of group files
+ * @param filem_change Denotes whether the directory change should be done
+ */
+int cg_chmod_recursive(struct cgroup *cgroup, mode_t dir_mode,
+	int dirm_change, mode_t file_mode, int filem_change);
 
 /**
  * @}
