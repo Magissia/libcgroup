@@ -1,3 +1,14 @@
+libcgroup (0.37-1) unstable; urgency=low
+
+  * [59d325] New upstream version 0.37
+  * [bb3923] Set source format to 3.0 (quilt)
+  * [084091] Bump Standards-Version to 3.9.1
+  * [3504c3] Update watchfile to look for bzip2 files
+  * [41151b] Convert patches to git-buldpackage's patch queue format
+    (Closes: #604635)
+
+ -- Jon Bernard <jbernard@debian.org>  Wed, 15 Dec 2010 11:20:42 -0500
+
 libcgroup (0.36.2-3) unstable; urgency=low
 
   * [a1bd2b] Add device controller to the default configuration
