@@ -1,0 +1,116 @@
+From: Jon Bernard <jbernard@debian.org>
+Date: Wed, 15 Dec 2010 10:15:37 -0500
+Subject: [PATCH] Remove subsys from initscripts
+To: libcg-devel@lists.sourceforge.net
+
+Debian uses /var/lock for process lockfiles. The use of /var/log/subsys
+is RedHat specific, I believe.
+
+This is obviously not compatible with non debian-based distributions.
+Ideally, we could settle on a change that works for all parties.
+---
+ scripts/init.d/cgconfig.in |   12 ++++++------
+ scripts/init.d/cgred.in    |   10 +++++-----
+ 2 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/scripts/init.d/cgconfig.in b/scripts/init.d/cgconfig.in
+index ccd779c..e671c08 100644
+--- a/scripts/init.d/cgconfig.in
++++ b/scripts/init.d/cgconfig.in
+@@ -106,7 +106,7 @@ create_default_groups() {
+ 
+ start() {
+         echo -n "Starting cgconfig service: "
+-	if [ -f /var/lock/subsys/$servicename ]
++	if [ -f /var/lock/$servicename ]
+         then
+             log_warning_msg "lock file already exists"
+             return 0
+@@ -133,11 +133,11 @@ start() {
+                 create_default_groups
+         fi
+ 
+-        touch /var/lock/subsys/$servicename
++        touch /var/lock/$servicename
+         retval=$?
+         if [ $retval -ne 0 ]
+         then
+-            log_failure_msg "Failed to touch " /var/lock/subsys/$servicename
++            log_failure_msg "Failed to touch " /var/lock/$servicename
+             return 1
+         fi
+         log_success_msg
+@@ -147,7 +147,7 @@ start() {
+ stop() {
+     echo -n "Stopping cgconfig service: "
+     cgclear
+-    rm -f /var/lock/subsys/$servicename
++    rm -f /var/lock/$servicename
+     log_success_msg
+     return 0
+ }
+@@ -198,14 +198,14 @@ case $1 in
+         RETVAL=$?
+         ;;
+     'condrestart')
+-        if [ -f /var/lock/subsys/$servicename ] ; then
++        if [ -f /var/lock/$servicename ] ; then
+             stop
+             start
+             RETVAL=$?
+         fi
+         ;;
+     'status')
+-        if [ -f /var/lock/subsys/$servicename ] ; then
++        if [ -f /var/lock/$servicename ] ; then
+             echo "Running"
+             exit 0
+         else
+diff --git a/scripts/init.d/cgred.in b/scripts/init.d/cgred.in
+index 0401395..d226608 100644
+--- a/scripts/init.d/cgred.in
++++ b/scripts/init.d/cgred.in
+@@ -70,7 +70,7 @@ RETVAL=0
+ start()
+ {
+ 	echo -n $"Starting CGroup Rules Engine Daemon: "
+-	if [ -f "/var/lock/subsys/$servicename" ] ; then
++	if [ -f "/var/lock/$servicename" ] ; then
+ 		log_failure_msg "$servicename is already running with PID `cat ${pidfile}`"
+ 		return 0
+ 	fi
+@@ -89,7 +89,7 @@ start()
+ 	if [ $RETVAL -ne 0 ]; then
+ 		return 7
+ 	fi
+-	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/$servicename
++	[ $RETVAL -eq 0 ] && touch /var/lock/$servicename
+ 	echo "`pidof $processname`" > $pidfile
+ }
+ 
+@@ -104,7 +104,7 @@ stop()
+ 	RETVAL=$?
+ 	echo
+ 	if [ $RETVAL -eq 0 ] ; then
+-		rm -f /var/lock/subsys/$servicename
++		rm -f /var/lock/$servicename
+ 		rm -f $pidfile
+ 	fi
+ }
+@@ -128,13 +128,13 @@ case "$1" in
+ 		start
+ 		;;
+ 	condrestart)
+-		if [ -f /var/lock/subsys/$servicename ] ; then
++		if [ -f /var/lock/$servicename ] ; then
+ 			stop
+ 			start
+ 		fi
+ 		;;
+ 	reload|flash)
+-		if [ -f /var/lock/subsys/$servicename ] ; then
++		if [ -f /var/lock/$servicename ] ; then
+ 			echo $"Reloading rules configuration..."
+ 			kill -s 12 `cat ${pidfile}`
+ 			RETVAL=$?
+-- 

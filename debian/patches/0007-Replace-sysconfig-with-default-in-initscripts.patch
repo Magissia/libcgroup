@@ -1,0 +1,46 @@
+From: Jon Bernard <jbernard@debian.org>
+Date: Wed, 15 Dec 2010 10:21:08 -0500
+Subject: [PATCH] Replace sysconfig with default in initscripts
+To: libcg-devel@lists.sourceforge.net
+
+Debian uses /etc/default for initscript configuration files. The use of
+/etc/sysconfig is RedHat specific, I believe.
+
+This is obviously not compatible with non debian-based distributions.
+Ideally, we could settle on a change that works for all parties.
+---
+ scripts/init.d/cgconfig.in |    4 ++--
+ scripts/init.d/cgred.in    |    4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/scripts/init.d/cgconfig.in b/scripts/init.d/cgconfig.in
+index e671c08..dfd6222 100644
+--- a/scripts/init.d/cgconfig.in
++++ b/scripts/init.d/cgconfig.in
+@@ -48,8 +48,8 @@ servicename=cgconfig
+ 
+ # read the config
+ CREATE_DEFAULT=yes
+-if [ -e /etc/sysconfig/cgconfig ]; then
+-        . /etc/sysconfig/cgconfig
++if [ -e /etc/default/cgconfig ]; then
++        . /etc/default/cgconfig
+ fi
+ 
+ RETVAL=0
+diff --git a/scripts/init.d/cgred.in b/scripts/init.d/cgred.in
+index d226608..1ebd0bf 100644
+--- a/scripts/init.d/cgred.in
++++ b/scripts/init.d/cgred.in
+@@ -44,8 +44,8 @@ CGRED_CONF=/etc/cgrules.conf
+ . /lib/lsb/init-functions
+ 
+ # Read in configuration options.
+-if [ -f "/etc/sysconfig/cgred.conf" ] ; then
+-	. /etc/sysconfig/cgred.conf
++if [ -f "/etc/default/cgred.conf" ] ; then
++	. /etc/default/cgred.conf
+ 	OPTIONS="$NODAEMON $LOG"
+ 	if [ -n "$LOG_FILE" ]; then
+ 		OPTIONS="$OPTIONS --logfile=$LOG_FILE"
+-- 

@@ -1,0 +1,27 @@
+From: Jon Bernard <jbernard@debian.org>
+Date: Mon, 13 Dec 2010 17:28:06 -0500
+Subject: [PATCH] Mount cgroups under /sys/fs/cgroups by default
+To: libcg-devel@lists.sourceforge.net
+
+---
+ samples/cgconfig.conf |    9 +++++----
+ 1 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/samples/cgconfig.conf b/samples/cgconfig.conf
+index de77e4b..caa8865 100644
+--- a/samples/cgconfig.conf
++++ b/samples/cgconfig.conf
+@@ -42,7 +42,8 @@
+ #	}
+ #}
+ #
+-#mount {
+-#	cpu = /mnt/cgroups/cpu;
+-#	cpuacct = /mnt/cgroups/cpuacct;
+-#}
++mount {
++	cpu = /sys/fs/cgroup;
++	cpuacct = /sys/fs/cgroup/cpuacct;
++	devices = /sys/fs/cgroup/devices;
++}
+-- 

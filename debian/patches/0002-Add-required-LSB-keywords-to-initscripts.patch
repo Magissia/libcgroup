@@ -1,0 +1,55 @@
+From: Jon Bernard <jbernard@debian.org>
+Date: Wed, 15 Dec 2010 09:38:25 -0500
+Subject: [PATCH] Add required LSB keywords to initscripts
+To: libcg-devel@lists.sourceforge.net
+
+These changes are required for Debian compatibility. Here is the
+relevant lintian information:
+
+    These /etc/init.d scripts have an LSB keyword section, but they are
+    missing the required LSB keywords 'default-start' and
+    'default-stop'. If the value of these keywords should be empty,
+    please still include them in the LSB keyword section with an empty
+    value.
+
+    Refer to http://wiki.debian.org/LSBInitScripts for details.
+
+I am not sure if theses changes are compatible with other distributions.
+This is something that needs to be looked into. Ideally, we could settle
+on a set of changes that works for all parties.
+---
+ scripts/init.d/cgconfig.in |    4 ++--
+ scripts/init.d/cgred.in    |    4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/scripts/init.d/cgconfig.in b/scripts/init.d/cgconfig.in
+index 0b3afd2..5d1d0d5 100644
+--- a/scripts/init.d/cgconfig.in
++++ b/scripts/init.d/cgconfig.in
+@@ -23,8 +23,8 @@
+ # Provides:             cgconfig
+ # Required-Start:
+ # Required-Stop:
+-# Should-Start:
+-# Should-Stop:
++# Default-Start:        2 3 4 5
++# Default-Stop:         0 1 6
+ # Short-Description:    start and stop the WLM configuration
+ # Description:          This script allows us to create a default configuration
+ ### END INIT INFO
+diff --git a/scripts/init.d/cgred.in b/scripts/init.d/cgred.in
+index 784bddc..cb30a83 100644
+--- a/scripts/init.d/cgred.in
++++ b/scripts/init.d/cgred.in
+@@ -25,8 +25,8 @@
+ # Provides:		cgrulesengd
+ # Required-Start:	$local_fs $syslog $cgconfig
+ # Required-Stop:	$local_fs $syslog
+-# Should-Start:		
+-# Should-Stop:		
++# Default-Start:        2 3 4 5
++# Default-Stop:         0 1 6
+ # Short-Description:	start and stop the cgroups rules engine daemon
+ # Description:		CGroup Rules Engine is a tool for automatically using \
+ #			cgroups to classify processes
+-- 

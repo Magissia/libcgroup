@@ -1,0 +1,34 @@
+From: Jon Bernard <jbernard@debian.org>
+Date: Wed, 15 Dec 2010 10:27:29 -0500
+Subject: [PATCH] Update LSB function calls in initscripts
+To: libcg-devel@lists.sourceforge.net
+
+In Debian, these functions go by a slightly different name and
+signature.
+---
+ scripts/init.d/cgred.in |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/scripts/init.d/cgred.in b/scripts/init.d/cgred.in
+index 9c06ce4..9e0bbe2 100644
+--- a/scripts/init.d/cgred.in
++++ b/scripts/init.d/cgred.in
+@@ -82,7 +82,7 @@ start()
+ 		log_failure_msg $"Cannot find cgroups, is cgconfig service running?"
+ 		return 1
+ 	fi
+-	daemon --check $servicename --pidfile $pidfile $CGRED_BIN $OPTIONS
++	start_daemon -p $pidfile $CGRED_BIN $OPTIONS
+ 	RETVAL=$?
+ 	echo
+ 	if [ $RETVAL -ne 0 ]; then
+@@ -119,7 +119,7 @@ case "$1" in
+ 		RETVAL=$?
+ 		;;
+ 	status)
+-		status -p $pidfile $servicename
++		status_of_proc -p $pidfile $servicename
+ 		RETVAL=$?
+ 		;;
+ 	restart|force-reload)
+-- 
