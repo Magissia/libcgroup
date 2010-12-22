@@ -1,3 +1,10 @@
+libcgroup (0.37-2) unstable; urgency=low
+
+  * [01392d] Fix typo in debian initscript patch
+    (Closes: #607814) - thanks to Edward Allcutt
+
+ -- Jon Bernard <jbernard@debian.org>  Wed, 22 Dec 2010 10:39:46 -0500
+
 libcgroup (0.37-1) unstable; urgency=low
 
   * [59d325] New upstream version 0.37
