@@ -10,7 +10,7 @@ signature.
  1 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/scripts/init.d/cgred.in b/scripts/init.d/cgred.in
-index 9c06ce4..9e0bbe2 100644
+index 4b6c610..2f5d332 100644
 --- a/scripts/init.d/cgred.in
 +++ b/scripts/init.d/cgred.in
 @@ -82,7 +82,7 @@ start()

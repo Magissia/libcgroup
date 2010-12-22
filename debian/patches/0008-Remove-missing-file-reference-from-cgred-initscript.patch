@@ -10,7 +10,7 @@ only /lib/lsb/init-functions should be all that is required.
  1 files changed, 0 insertions(+), 1 deletions(-)
 
 diff --git a/scripts/init.d/cgred.in b/scripts/init.d/cgred.in
-index 1ebd0bf..9c06ce4 100644
+index 936597c..4b6c610 100644
 --- a/scripts/init.d/cgred.in
 +++ b/scripts/init.d/cgred.in
 @@ -40,7 +40,6 @@ CGRED_CONF=/etc/cgrules.conf

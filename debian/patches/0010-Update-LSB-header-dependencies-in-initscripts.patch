@@ -24,7 +24,7 @@ index dfd6222..e045933 100644
  # Default-Stop:         0 1 6
  # Short-Description:    start and stop the WLM configuration
 diff --git a/scripts/init.d/cgred.in b/scripts/init.d/cgred.in
-index 9e0bbe2..c9c1729 100644
+index 2f5d332..7c2006f 100644
 --- a/scripts/init.d/cgred.in
 +++ b/scripts/init.d/cgred.in
 @@ -22,9 +22,9 @@
