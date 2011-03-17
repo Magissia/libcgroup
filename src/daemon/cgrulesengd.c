@@ -173,13 +173,15 @@ static int cgre_store_parent_info(pid_t pid)
 	uptime_ns = ((__u64)tp.tv_sec * 1000 * 1000 * 1000 ) + tp.tv_nsec;
 
 	if (array_pi.index >= array_pi.num_allocation) {
-		array_pi.num_allocation += NUM_PER_REALLOCATIOM;
-		array_pi.parent_info = realloc(array_pi.parent_info,
-					sizeof(info) * array_pi.num_allocation);
-		if (!array_pi.parent_info) {
+		int alloc = array_pi.num_allocation + NUM_PER_REALLOCATIOM;
+		void *new_array = realloc(array_pi.parent_info,
+					  sizeof(info) * alloc);
+		if (!new_array) {
 			flog(LOG_WARNING, "Failed to allocate memory");
 			return 1;
 		}
+		array_pi.parent_info = new_array;
+		array_pi.num_allocation = alloc;
 	}
 	info = calloc(1, sizeof(struct parent_info));
 	if (!info) {
@@ -258,13 +260,15 @@ static int cgre_store_unchanged_process(pid_t pid, int flags)
 		return 0;
 	}
 	if (array_unch.index >= array_unch.num_allocation) {
-		array_unch.num_allocation += NUM_PER_REALLOCATIOM;
-		array_unch.proc = realloc(array_unch.proc,
-			sizeof(unchanged_pid_t) * array_unch.num_allocation);
-		if (!array_unch.proc) {
+		int alloc = array_unch.num_allocation + NUM_PER_REALLOCATIOM;
+		void *new_array = realloc(array_unch.proc,
+					  sizeof(unchanged_pid_t) * alloc);
+		if (!new_array) {
 			flog(LOG_WARNING, "Failed to allocate memory");
 			return 1;
 		}
+		array_unch.proc = new_array;
+		array_unch.num_allocation = alloc;
 	}
 	array_unch.proc[array_unch.index].pid = pid;
 	array_unch.proc[array_unch.index].flags = flags;
@@ -339,6 +343,12 @@ int cgre_process_event(const struct proc_event *ev, const int type)
 	switch (type) {
 	case PROC_EVENT_UID:
 	case PROC_EVENT_GID:
+		/*
+		 * If the unchanged process, the daemon should not change the
+		 * cgroup of the process.
+		 */
+		if (cgre_is_unchanged_process(ev->event_data.id.process_pid))
+			return 0;
 		pid = ev->event_data.id.process_pid;
 		break;
 	case PROC_EVENT_FORK:
@@ -493,17 +503,10 @@ static int cgre_receive_netlink_msg(int sk_nl)
 	struct sockaddr_nl from_nla;
 	socklen_t from_nla_len;
 	struct nlmsghdr *nlh;
-	struct sockaddr_nl kern_nla;
 	struct cn_msg *cn_hdr;
-
-	kern_nla.nl_family = AF_NETLINK;
-	kern_nla.nl_groups = CN_IDX_PROC;
-	kern_nla.nl_pid = 1;
-	kern_nla.nl_pad = 0;
 
 	memset(buff, 0, sizeof(buff));
 	from_nla_len = sizeof(from_nla);
-	memcpy(&from_nla, &kern_nla, sizeof(from_nla));
 	recv_len = recvfrom(sk_nl, buff, sizeof(buff), 0,
 		(struct sockaddr *)&from_nla, &from_nla_len);
 	if (recv_len == ENOBUFS) {
@@ -511,6 +514,14 @@ static int cgre_receive_netlink_msg(int sk_nl)
 		return 0;
 	}
 	if (recv_len < 1)
+		return 0;
+
+	if (from_nla_len != sizeof(from_nla)) {
+		flog(LOG_ERR, "Bad address size reading netlink socket");
+		return 0;
+	}
+	if (from_nla.nl_groups != CN_IDX_PROC
+	    || from_nla.nl_pid != 0)
 		return 0;
 
 	nlh = (struct nlmsghdr *)buff;
