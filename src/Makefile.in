@@ -132,7 +132,7 @@ AM_RECURSIVE_TARGETS = $(RECURSIVE_TARGETS:-recursive=) \
 	distdir
 ETAGS = etags
 CTAGS = ctags
-DIST_SUBDIRS = $(SUBDIRS)
+DIST_SUBDIRS = . daemon pam tools bindings
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 am__relativize = \
   dir0=`pwd`; \
@@ -269,7 +269,6 @@ libdir = @libdir@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
-lt_ECHO = @lt_ECHO@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 oldincludedir = @oldincludedir@
@@ -286,7 +285,8 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-SUBDIRS = . daemon pam tools
+@WITH_BINDINGS_TRUE@BINDINGS_SUBDIR = bindings
+SUBDIRS = . daemon pam tools $(BINDINGS_SUBDIR)
 
 # generate parse.h  from parse.y
 AM_YFLAGS = -d

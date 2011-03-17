@@ -115,7 +115,7 @@ const char const *cgroup_strerror_codes[] = {
 	"Failed to parse config file",
 	"Have multiple paths for the same namespace",
 	"Controller in namespace does not exist",
-	"Cannot have mount and namespace keyword in the same configuration file",
+	"Either mount or namespace keyword has to be specified in the configuration file",
 	"This kernel does not support this feature",
 	"Value setting does not succeed",
 };
@@ -1991,6 +1991,8 @@ static int cgroup_fill_cgc(struct dirent *ctrl_dir, struct cgroup *cgroup,
 	char *ctrl_file = NULL;
 	char *ctrl_value = NULL;
 	char *d_name = NULL;
+	char *tmp_path = NULL;
+	int tmp_len = 0;
 	char path[FILENAME_MAX+1];
 	char *buffer = NULL;
 	int error = 0;
@@ -2019,8 +2021,33 @@ static int cgroup_fill_cgc(struct dirent *ctrl_dir, struct cgroup *cgroup,
 		goto fill_error;
 	}
 
-	cgroup->control_uid = stat_buffer.st_uid;
-	cgroup->control_gid = stat_buffer.st_gid;
+	/*
+	 * We have already stored the tasks_uid & tasks_gid.
+	 * This check is to avoid the overwriting of the values
+	 * stored in control_uid & cotrol_gid. tasks file will
+	 * have the uid and gid of the user who is capable of
+	 * putting a task to this cgroup. control_uid and control_gid
+	 * is meant for the users who are capable of managing the
+	 * cgroup shares.
+	 *
+	 * The strstr() function will return the pointer to the
+	 * beginning of the sub string "/tasks".
+	 */
+	tmp_len = strlen(path) - strlen("/tasks");
+
+	/*
+	 * tmp_path would be pointing to the last six characters
+	 */
+	tmp_path = (char *)path + tmp_len;
+
+	/*
+	 * Checking to see, if this is actually a 'tasks' file
+	 * We need to compare the last 6 bytes
+	 */
+	if (strcmp(tmp_path, "/tasks")){
+		cgroup->control_uid = stat_buffer.st_uid;
+		cgroup->control_gid = stat_buffer.st_gid;
+	}
 
 	ctrl_name = strtok_r(d_name, ".", &buffer);
 
@@ -2366,6 +2393,14 @@ int cgroup_change_cgroup_flags(uid_t uid, gid_t gid,
 	/* Temporary pointer to a rule */
 	struct cgroup_rule *tmp = NULL;
 
+	/* Temporary variables for destination substitution */
+	char newdest[FILENAME_MAX];
+	int i, j;
+	int written;
+	int available;
+	struct passwd *user_info;
+	struct group *group_info;
+
 	/* Return codes */
 	int ret = 0;
 
@@ -2418,7 +2453,92 @@ int cgroup_change_cgroup_flags(uid_t uid, gid_t gid,
 	do {
 		cgroup_dbg("Executing rule %s for PID %d... ", tmp->username,
 								pid);
-		ret = cgroup_change_cgroup_path(tmp->destination,
+		/* Destination substitutions */
+		for(j = i = 0; i < strlen(tmp->destination) &&
+			(j < FILENAME_MAX - 2); ++i, ++j) {
+			if(tmp->destination[i] == '%') {
+				/* How many bytes did we write / error check */
+				written = 0;
+				/* How many bytes can we write */
+				available = FILENAME_MAX - j - 2;
+				/* Substitution */
+				switch(tmp->destination[++i]) {
+				case 'u':
+					written = snprintf(newdest+j, available,
+						"%d", uid);
+					break;
+				case 'U':
+					user_info = getpwuid(uid);
+					if(user_info) {
+						written = snprintf(newdest + j,
+							available, "%s",
+							user_info -> pw_name);
+					} else {
+						written = snprintf(newdest + j,
+							available, "%d", uid);
+					}
+					break;
+				case 'g':
+					written = snprintf(newdest + j,
+						available, "%d", gid);
+					break;
+				case 'G':
+					group_info = getgrgid(gid);
+					if(group_info) {
+						written = snprintf(newdest + j,
+							available, "%s",
+							group_info -> gr_name);
+					} else {
+						written = snprintf(newdest + j,
+							available, "%d", gid);
+					}
+					break;
+				case 'p':
+					written = snprintf(newdest + j,
+						available, "%d", pid);
+					break;
+				case 'P':
+					if(procname) {
+						written = snprintf(newdest + j,
+							available, "%s",
+							procname);
+					} else {
+						written = snprintf(newdest + j,
+							available, "%d", pid);
+					}
+					break;
+				}
+				written = min(written, available);
+				/*
+				 * written<1 only when either error occurred
+				 * during snprintf or if no substitution was
+				 * made at all. In both cases, we want to just
+				 * copy input string.
+				 */
+				if(written<1) {
+					newdest[j] = '%';
+					if(available>1)
+						newdest[++j] =
+							tmp->destination[i];
+				} else {
+					/*
+					 * In next iteration, we will write
+					 * just after the substitution, but j
+					 * will get incremented in the
+					 * meantime.
+					 */
+					j += written - 1;
+				}
+			} else {
+				if(tmp->destination[i] == '\\')
+					++i;
+				newdest[j] = tmp->destination[i];
+			}
+		}
+		newdest[j] = 0;
+
+		/* Apply the rule */
+		ret = cgroup_change_cgroup_path(newdest,
 				pid, (const char * const *)tmp->controllers);
 		if (ret) {
 			cgroup_dbg("FAILED! (Error Code: %d)\n", ret);
