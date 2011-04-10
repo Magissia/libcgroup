@@ -24,7 +24,7 @@ Description: Development libraries to develop applications that utilize control 
 Package: libcgroup1
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: A library to control and monitor control groups
+Description: Library to control and monitor control groups
  Control Groups provide a mechanism for aggregating/partitioning sets of tasks,
  and all their future children, into hierarchical groups with specialized
  behaviour.
@@ -36,7 +36,7 @@ Package: libpam-cgroup
 Section: admin
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: A PAM module to move a user session into a cgroup
+Description: PAM module to move a user session into a cgroup
  Control Groups provide a mechanism for aggregating/partitioning sets of tasks,
  and all their future children, into hierarchical groups with specialized
  behaviour.
