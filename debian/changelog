@@ -1,3 +1,14 @@
+libcgroup (0.37.1-1) unstable; urgency=low
+
+  * [f7cc41d] New upstream version 0.37.1 (Closes: #615987)
+  * [24dfa81] Refresh existing patches
+  * [25be27b] Add patch to fix cgconfig.conf manpage
+  * [4a06e2d] Add patch to fix spelling mistake in cgcreate.
+    Thanks to Nikita A Menkovich <nikita@menkovich.ru> (Closes: #610967)
+  * [25e7f37] Remove article from start of description synopsis
+
+ -- Jon Bernard <jbernard@debian.org>  Sun, 10 Apr 2011 09:55:33 -0400
+
 libcgroup (0.37-2) unstable; urgency=low
 
   * [01392d] Fix typo in debian initscript patch
