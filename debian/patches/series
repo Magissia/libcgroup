@@ -10,3 +10,4 @@
 0010-Update-LSB-header-dependencies-in-initscripts.patch
 0011-Replace-misuse-of-hyphens-in-manpages-with-minus-sig.patch
 0012-Fix-cgconfig.conf-manpage-formatting-error.patch
+0013-Fix-spelling-mistake-in-cgcreate.patch
