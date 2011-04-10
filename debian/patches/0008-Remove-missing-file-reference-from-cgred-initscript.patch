@@ -1,6 +1,6 @@
 From: Jon Bernard <jbernard@debian.org>
 Date: Wed, 15 Dec 2010 10:24:29 -0500
-Subject: [PATCH] Remove missing file reference from cgred initscript
+Subject: Remove missing file reference from cgred initscript
 To: libcg-devel@lists.sourceforge.net
 
 The file /etc/rc.d/init.d/functions does not exist in Debian. Sourcing
@@ -10,7 +10,7 @@ only /lib/lsb/init-functions should be all that is required.
  1 files changed, 0 insertions(+), 1 deletions(-)
 
 diff --git a/scripts/init.d/cgred.in b/scripts/init.d/cgred.in
-index 936597c..4b6c610 100644
+index 998f9fa..d0b343b 100644
 --- a/scripts/init.d/cgred.in
 +++ b/scripts/init.d/cgred.in
 @@ -40,7 +40,6 @@ CGRED_CONF=/etc/cgrules.conf

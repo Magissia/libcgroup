@@ -1,6 +1,6 @@
 From: Jon Bernard <jbernard@debian.org>
 Date: Mon, 13 Dec 2010 17:28:06 -0500
-Subject: [PATCH] Mount cgroups under /sys/fs/cgroups by default
+Subject: Mount cgroups under /sys/fs/cgroups by default
 To: libcg-devel@lists.sourceforge.net
 
 ---

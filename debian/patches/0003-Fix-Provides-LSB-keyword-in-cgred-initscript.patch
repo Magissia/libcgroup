@@ -1,6 +1,6 @@
 From: Jon Bernard <jbernard@debian.org>
 Date: Wed, 15 Dec 2010 09:53:04 -0500
-Subject: [PATCH] Fix Provides LSB keyword in cgred initscript
+Subject: Fix Provides LSB keyword in cgred initscript
 To: libcg-devel@lists.sourceforge.net
 
 This change is required for Debian compatibility. Here is the relevant
@@ -22,7 +22,7 @@ settle on a change that works for all parties.
  1 files changed, 1 insertions(+), 1 deletions(-)
 
 diff --git a/scripts/init.d/cgred.in b/scripts/init.d/cgred.in
-index cb30a83..2b51443 100644
+index 09b2c1e..d23472c 100644
 --- a/scripts/init.d/cgred.in
 +++ b/scripts/init.d/cgred.in
 @@ -22,9 +22,9 @@

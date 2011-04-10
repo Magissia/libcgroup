@@ -1,6 +1,6 @@
 From: Jon Bernard <jbernard@debian.org>
 Date: Wed, 15 Dec 2010 09:59:38 -0500
-Subject: [PATCH] Fix typo in cgred initscript LSB dependency section
+Subject: Fix typo in cgred initscript LSB dependency section
 To: libcg-devel@lists.sourceforge.net
 
 Here is the relevant lintian information:
@@ -19,7 +19,7 @@ I believe this is likely a typo and can be merged upstream.
  1 files changed, 1 insertions(+), 1 deletions(-)
 
 diff --git a/scripts/init.d/cgred.in b/scripts/init.d/cgred.in
-index 2b51443..a12c5fe 100644
+index d23472c..725d0b3 100644
 --- a/scripts/init.d/cgred.in
 +++ b/scripts/init.d/cgred.in
 @@ -22,7 +22,7 @@

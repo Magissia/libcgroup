@@ -1,6 +1,6 @@
 From: Jon Bernard <jbernard@debian.org>
-Date: Wed, 15 Dec 2010 10:07:37 -0500
-Subject: [PATCH] Add force-reload action to initscripts
+Date: Sun, 27 Mar 2011 20:12:51 -0400
+Subject: Add force-reload action to initscripts
 To: libcg-devel@lists.sourceforge.net
 
 This change is required for Debian compatibility. Here is the relevant
@@ -20,46 +20,46 @@ doesn't hurt.
  2 files changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/scripts/init.d/cgconfig.in b/scripts/init.d/cgconfig.in
-index 5d1d0d5..ccd779c 100644
+index 8e0bad0..3459a42 100644
 --- a/scripts/init.d/cgconfig.in
 +++ b/scripts/init.d/cgconfig.in
-@@ -160,7 +160,7 @@ trapped() {
+@@ -146,7 +146,7 @@ trapped() {
  }
  
  usage() {
 -    echo "$0 <start|stop|restart|condrestart|status>"
-+    echo "$0 <start|stop|restart|force-reload|condrestart|status>"
++    echo "$0 <start|stop|restart|condrestart|status|force-reload>"
      exit 2
  }
  
-@@ -185,7 +185,7 @@ case $1 in
-         start;
+@@ -179,7 +179,7 @@ case $1 in
+         start
          RETVAL=$?
          ;;
--    'restart')
-+    'restart'|'force-reload')
-         common
- 	stop
-         start
+-    'restart'|'reload')
++    'restart'|'reload'|'force-reload')
+ 	restart
+         RETVAL=$?
+         ;;
 diff --git a/scripts/init.d/cgred.in b/scripts/init.d/cgred.in
-index a12c5fe..0401395 100644
+index 725d0b3..3677f2c 100644
 --- a/scripts/init.d/cgred.in
 +++ b/scripts/init.d/cgred.in
-@@ -123,7 +123,7 @@ case "$1" in
- 		status -p $pidfile $servicename
- 		RETVAL=$?
+@@ -141,7 +141,7 @@ case "$1" in
+ 			RETVAL=$?
+ 		fi
  		;;
--	restart)
-+	restart|force-reload)
- 		stop
- 		start
- 		;;
-@@ -148,7 +148,7 @@ case "$1" in
+-	reload|flash)
++	reload|flash|force-reload)
+ 		if [ -f "$lockfile" ]; then
+ 			echo $"Reloading rules configuration..."
+ 			kill -s 12 `cat ${pidfile}`
+@@ -156,7 +156,7 @@ case "$1" in
  		fi
  		;;
  	*)
 -		echo $"Usage: $0 {start|stop|status|restart|condrestart|reload}"
-+		echo $"Usage: $0 {start|stop|status|restart|force-reload|condrestart|reload}"
++		echo $"Usage: $0 {start|stop|status|restart|condrestart|reload|force-reload}"
  		RETVAL=2
  		;;
  esac

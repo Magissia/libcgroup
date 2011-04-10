@@ -1,6 +1,6 @@
 From: Jon Bernard <jbernard@debian.org>
 Date: Wed, 15 Dec 2010 09:38:25 -0500
-Subject: [PATCH] Add required LSB keywords to initscripts
+Subject: Add required LSB keywords to initscripts
 To: libcg-devel@lists.sourceforge.net
 
 These changes are required for Debian compatibility. Here is the
@@ -23,7 +23,7 @@ on a set of changes that works for all parties.
  2 files changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/scripts/init.d/cgconfig.in b/scripts/init.d/cgconfig.in
-index 0b3afd2..5d1d0d5 100644
+index d9d67d7..8e0bad0 100644
 --- a/scripts/init.d/cgconfig.in
 +++ b/scripts/init.d/cgconfig.in
 @@ -23,8 +23,8 @@
@@ -38,7 +38,7 @@ index 0b3afd2..5d1d0d5 100644
  # Description:          This script allows us to create a default configuration
  ### END INIT INFO
 diff --git a/scripts/init.d/cgred.in b/scripts/init.d/cgred.in
-index 784bddc..cb30a83 100644
+index 9ff2d9b..09b2c1e 100644
 --- a/scripts/init.d/cgred.in
 +++ b/scripts/init.d/cgred.in
 @@ -25,8 +25,8 @@

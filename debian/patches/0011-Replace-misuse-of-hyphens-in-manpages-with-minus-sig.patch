@@ -1,6 +1,6 @@
 From: Jon Bernard <jbernard@debian.org>
 Date: Wed, 15 Dec 2010 11:06:49 -0500
-Subject: [PATCH] Replace misuse of hyphens in manpages with minus signs
+Subject: Replace misuse of hyphens in manpages with minus signs
 To: libcg-devel@lists.sourceforge.net
 
 Here is the relevant lintian information:
@@ -56,10 +56,10 @@ index 2d8921b..b4815b8 100644
  .SH DESCRIPTION
  this command moves processes defined by the list
 diff --git a/doc/man/cgconfig.conf.5 b/doc/man/cgconfig.conf.5
-index b7218b9..0239574 100644
+index fea61ea..879c1ba 100644
 --- a/doc/man/cgconfig.conf.5
 +++ b/doc/man/cgconfig.conf.5
-@@ -197,7 +197,7 @@ inside. It corresponds to following operations:
+@@ -195,7 +195,7 @@ inside. It corresponds to following operations:
  .RS
  .nf
  mkdir /mnt/cgroups/cpu
@@ -68,7 +68,7 @@ index b7218b9..0239574 100644
  .fi
  .RE
  
-@@ -274,7 +274,7 @@ It corresponds to following operations:
+@@ -272,7 +272,7 @@ It corresponds to following operations:
  .RS
  .nf
  mkdir /mnt/cgroups/cpu
@@ -77,7 +77,7 @@ index b7218b9..0239574 100644
  
  mkdir /mnt/cgroups/cpu/daemons
  
-@@ -339,8 +339,8 @@ It corresponds to following operations:
+@@ -337,8 +337,8 @@ It corresponds to following operations:
  .nf
  mkdir /mnt/cgroups/cpu
  mkdir /mnt/cgroups/cpuacct
@@ -88,7 +88,7 @@ index b7218b9..0239574 100644
  
  mkdir /mnt/cgroups/cpu/daemons
  mkdir /mnt/cgroups/cpuacct/daemons
-@@ -406,8 +406,8 @@ It corresponds to following operations:
+@@ -404,8 +404,8 @@ It corresponds to following operations:
  .nf
  mkdir /mnt/cgroups/cpu
  mkdir /mnt/cgroups/cpuacct
@@ -99,7 +99,7 @@ index b7218b9..0239574 100644
  
  mkdir /mnt/cgroups/cpuacct/daemons
  mkdir /mnt/cgroups/cpu/daemons
-@@ -504,7 +504,7 @@ It corresponds to following operations:
+@@ -502,7 +502,7 @@ It corresponds to following operations:
  .RS
  .nf
  mkdir /mnt/cgroups/cpu
