@@ -25,6 +25,7 @@ __BEGIN_DECLS
 #include <pthread.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <setjmp.h>
 
 /* Maximum number of mount points/controllers */
 #define MAX_MNT_ELEMENTS	8
@@ -84,14 +85,25 @@ struct cgroup {
 	int index;
 	uid_t tasks_uid;
 	gid_t tasks_gid;
+	mode_t task_fperm;
 	uid_t control_uid;
 	gid_t control_gid;
+	mode_t control_fperm;
+	mode_t control_dperm;
 };
 
+struct cg_mount_point {
+	char path[FILENAME_MAX];
+	struct cg_mount_point *next;
+};
 
 struct cg_mount_table_s {
+	/** Controller name. */
 	char name[FILENAME_MAX];
-	char path[FILENAME_MAX];
+	/**
+	 * List of mount points, at least one mount point is there for sure.
+	 */
+	struct cg_mount_point mount;
 	int index;
 };
 
@@ -174,6 +186,11 @@ struct cgroup_dictionary_iterator {
  */
 extern __thread int last_errno;
 
+/**
+ * 'Exception handler' for lex parser.
+ */
+extern jmp_buf parser_error_env;
+
 /* Internal API */
 char *cg_build_path(const char *name, char *path, const char *type);
 int cgroup_get_uid_gid_from_procfs(pid_t pid, uid_t *euid, gid_t *egid);
@@ -181,6 +198,7 @@ int cgroup_get_procname_from_procfs(pid_t pid, char **procname);
 int cg_mkdir_p(const char *path);
 struct cgroup *create_cgroup_from_name_value_pairs(const char *name,
 		struct control_value *name_value, int nv_number);
+void init_cgroup_table(struct cgroup *cgroups, size_t count);
 
 /*
  * Main mounting structures
@@ -206,6 +224,7 @@ int cgroup_config_insert_into_mount_table(char *name, char *mount_point);
 int cgroup_config_insert_into_namespace_table(char *name, char *mount_point);
 void cgroup_config_cleanup_mount_table(void);
 void cgroup_config_cleanup_namespace_table(void);
+int cgroup_config_define_default(void);
 
 /**
  * Create an empty dictionary.
@@ -238,6 +257,17 @@ extern int cgroup_dictionary_iterator_next(void **handle,
  * Finish iteration through the dictionary.
  */
 extern void cgroup_dictionary_iterator_end(void **handle);
+
+/**
+ * Changes permissions for given path. If owner_is_umask is specified
+ * then it uses owner permissions as a mask for group and others permissions.
+ *
+ * @param path Patch to chmod.
+ * @param mode File permissions to set.
+ * @param owner_is_umask Flag whether path owner permissions should be used
+ * as a mask for group and others permissions.
+ */
+int cg_chmod_path(const char *path, mode_t mode, int owner_is_umask);
 
 __END_DECLS
 

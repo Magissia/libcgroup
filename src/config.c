@@ -49,6 +49,9 @@ unsigned int MAX_CGROUPS = 64;	/* NOTE: This value changes dynamically */
 extern FILE *yyin;
 extern int yyparse(void);
 
+static struct cgroup default_group;
+static int default_group_set = 0;
+
 /*
  * The basic global data structures.
  *
@@ -105,6 +108,7 @@ int cgroup_config_insert_cgroup(char *cg_name)
 
 		memset(newblk + oldlen, 0, (MAX_CGROUPS - oldlen) *
 				sizeof(struct cgroup));
+		init_cgroup_table(newblk + oldlen, MAX_CGROUPS - oldlen);
 		config_cgroup_table = newblk;
 		cgroup_dbg("MAX_CGROUPS %d\n", MAX_CGROUPS);
 		cgroup_dbg("reallocated config_cgroup_table to %p\n", config_cgroup_table);
@@ -186,7 +190,6 @@ int cgroup_config_group_task_perm(char *perm_type, char *value)
 {
 	struct passwd *pw, *pw_buffer;
 	struct group *group, *group_buffer;
-	int error;
 	long val = atoi(value);
 	char buffer[CGROUP_BUFFER_LEN];
 	struct cgroup *config_cgroup =
@@ -199,7 +202,7 @@ int cgroup_config_group_task_perm(char *perm_type, char *value)
 			if (!pw)
 				goto group_task_error;
 
-			error = getpwnam_r(value, pw, buffer, CGROUP_BUFFER_LEN,
+			getpwnam_r(value, pw, buffer, CGROUP_BUFFER_LEN,
 								&pw_buffer);
 			if (pw_buffer == NULL) {
 				free(pw);
@@ -219,7 +222,7 @@ int cgroup_config_group_task_perm(char *perm_type, char *value)
 			if (!group)
 				goto group_task_error;
 
-			error = getgrnam_r(value, group, buffer,
+			getgrnam_r(value, group, buffer,
 					CGROUP_BUFFER_LEN, &group_buffer);
 
 			if (group_buffer == NULL) {
@@ -231,6 +234,14 @@ int cgroup_config_group_task_perm(char *perm_type, char *value)
 			free(group);
 		}
 		config_cgroup->tasks_gid = val;
+	}
+
+	if (!strcmp(perm_type, "fperm")) {
+		char *endptr;
+		val = strtol(value, &endptr, 8);
+		if (*endptr)
+			goto group_task_error;
+		config_cgroup->task_fperm = val;
 	}
 
 	free(perm_type);
@@ -252,7 +263,6 @@ int cgroup_config_group_admin_perm(char *perm_type, char *value)
 {
 	struct passwd *pw, *pw_buffer;
 	struct group *group, *group_buffer;
-	int error;
 	struct cgroup *config_cgroup =
 				&config_cgroup_table[cgroup_table_index];
 	long val = atoi(value);
@@ -265,7 +275,7 @@ int cgroup_config_group_admin_perm(char *perm_type, char *value)
 			if (!pw)
 				goto admin_error;
 
-			error = getpwnam_r(value, pw, buffer, CGROUP_BUFFER_LEN,
+			getpwnam_r(value, pw, buffer, CGROUP_BUFFER_LEN,
 								&pw_buffer);
 			if (pw_buffer == NULL) {
 				free(pw);
@@ -285,7 +295,7 @@ int cgroup_config_group_admin_perm(char *perm_type, char *value)
 			if (!group)
 				goto admin_error;
 
-			error = getgrnam_r(value, group, buffer,
+			getgrnam_r(value, group, buffer,
 					CGROUP_BUFFER_LEN, &group_buffer);
 
 			if (group_buffer == NULL) {
@@ -297,6 +307,22 @@ int cgroup_config_group_admin_perm(char *perm_type, char *value)
 			free(group);
 		}
 		config_cgroup->control_gid = val;
+	}
+
+	if (!strcmp(perm_type, "fperm")) {
+		char *endptr;
+		val = strtol(value, &endptr, 8);
+		if (*endptr)
+			goto admin_error;
+		config_cgroup->control_fperm = val;
+	}
+
+	if (!strcmp(perm_type, "dperm")) {
+		char *endptr;
+		val = strtol(value, &endptr, 8);
+		if (*endptr)
+			goto admin_error;
+		config_cgroup->control_dperm = val;
 	}
 
 	free(perm_type);
@@ -328,7 +354,8 @@ int cgroup_config_insert_into_mount_table(char *name, char *mount_point)
 	 * Merge controller names with the same mount point
 	 */
 	for (i = 0; i < config_table_index; i++) {
-		if (strcmp(config_mount_table[i].path, mount_point) == 0) {
+		if (strcmp(config_mount_table[i].mount.path,
+				mount_point) == 0) {
 			char *cname = config_mount_table[i].name;
 			strncat(cname, ",", FILENAME_MAX - strlen(cname) - 1);
 			strncat(cname, name,
@@ -338,7 +365,8 @@ int cgroup_config_insert_into_mount_table(char *name, char *mount_point)
 	}
 
 	strcpy(config_mount_table[config_table_index].name, name);
-	strcpy(config_mount_table[config_table_index].path, mount_point);
+	strcpy(config_mount_table[config_table_index].mount.path, mount_point);
+	config_mount_table[config_table_index].mount.next = NULL;
 	config_table_index++;
 done:
 	pthread_rwlock_unlock(&config_table_lock);
@@ -368,7 +396,9 @@ int cgroup_config_insert_into_namespace_table(char *name, char *nspath)
 	pthread_rwlock_wrlock(&namespace_table_lock);
 
 	strcpy(config_namespace_table[namespace_table_index].name, name);
-	strcpy(config_namespace_table[namespace_table_index].path, nspath);
+	strcpy(config_namespace_table[namespace_table_index].mount.path,
+			nspath);
+	config_namespace_table[namespace_table_index].mount.next = NULL;
 	namespace_table_index++;
 
 	pthread_rwlock_unlock(&namespace_table_lock);
@@ -386,6 +416,39 @@ void cgroup_config_cleanup_namespace_table(void)
 			sizeof(struct cg_mount_table_s) * CG_CONTROLLER_MAX);
 }
 
+/**
+ * Add necessary options for mount. Currently only 'none' option is added
+ * for mounts with only 'name=xxx' and without real controller.
+ */
+static int cgroup_config_ajdust_mount_options(struct cg_mount_table_s *mount)
+{
+	char *save = NULL;
+	char *opts = strdup(mount->name);
+	char *token;
+	int name_only = 1;
+
+	if (opts == NULL)
+		return ECGFAIL;
+
+	token = strtok_r(opts, ",", &save);
+	while (token != NULL) {
+		if (strncmp(token, "name=", 5) != 0) {
+			name_only = 0;
+			break;
+		}
+		token = strtok_r(NULL, ",", &save);
+	}
+
+	free(opts);
+	if (name_only) {
+		strncat(mount->name, ",", FILENAME_MAX - strlen(mount->name)-1);
+		strncat(mount->name, "none",
+				FILENAME_MAX - strlen(mount->name) - 1);
+	}
+
+	return 0;
+}
+
 /*
  * Start mounting the mount table.
  */
@@ -394,34 +457,52 @@ static int cgroup_config_mount_fs(void)
 	int ret;
 	struct stat buff;
 	int i;
+	int error;
 
 	for (i = 0; i < config_table_index; i++) {
 		struct cg_mount_table_s *curr =	&(config_mount_table[i]);
 
-		ret = stat(curr->path, &buff);
+		ret = stat(curr->mount.path, &buff);
 
 		if (ret < 0 && errno != ENOENT) {
 			last_errno = errno;
-			return ECGOTHER;
+			error = ECGOTHER;
+			goto out_err;
 		}
 
 		if (errno == ENOENT) {
-			ret = cg_mkdir_p(curr->path);
-			if (ret)
-				return ret;
+			ret = cg_mkdir_p(curr->mount.path);
+			if (ret) {
+				error = ret;
+				goto out_err;
+			}
 		} else if (!S_ISDIR(buff.st_mode)) {
 			errno = ENOTDIR;
 			last_errno = errno;
-			return ECGOTHER;
+			error = ECGOTHER;
+			goto out_err;
 		}
 
-		ret = mount(CGROUP_FILESYSTEM, curr->path, CGROUP_FILESYSTEM,
-								0, curr->name);
+		error = cgroup_config_ajdust_mount_options(curr);
+		if (error)
+			goto out_err;
 
-		if (ret < 0)
-			return ECGMOUNTFAIL;
+		ret = mount(CGROUP_FILESYSTEM, curr->mount.path,
+				CGROUP_FILESYSTEM, 0, curr->name);
+
+		if (ret < 0) {
+			error = ECGMOUNTFAIL;
+			goto out_err;
+		}
 	}
 	return 0;
+out_err:
+	/*
+	 * If we come here, we have failed. Since we have touched only
+	 * mountpoints prior to i, we shall operate on only them now.
+	 */
+	config_table_index = i;
+	return error;
 }
 
 /*
@@ -477,10 +558,10 @@ static int cgroup_config_unmount_controllers(void)
 		 * We ignore failures and ensure that all mounted
 		 * containers are unmounted
 		 */
-		error = umount(config_mount_table[i].path);
+		error = umount(config_mount_table[i].mount.path);
 		if (error < 0)
 			cgroup_dbg("Unmount failed\n");
-		error = rmdir(config_mount_table[i].path);
+		error = rmdir(config_mount_table[i].mount.path);
 		if (error < 0)
 			cgroup_dbg("rmdir failed\n");
 	}
@@ -503,7 +584,7 @@ static int config_validate_namespaces(void)
 		 * are good, else we will need to go for two
 		 * loops. This should be optimized in the future
 		 */
-		mount_path = cg_mount_table[i].path;
+		mount_path = cg_mount_table[i].mount.path;
 
 		if (!mount_path) {
 			last_errno = errno;
@@ -538,7 +619,7 @@ static int config_validate_namespaces(void)
 		 * Search through the mount table to locate which subsystems
 		 * are mounted together.
 		 */
-		while (!strncmp(cg_mount_table[j].path, mount_path,
+		while (!strncmp(cg_mount_table[j].mount.path, mount_path,
 							FILENAME_MAX)) {
 			if (!namespace && cg_namespace_table[j]) {
 				/* In case namespace is not setup, set it up */
@@ -636,7 +717,8 @@ static int config_order_namespace_table(void)
 					goto error_out;
 				}
 
-				cg_namespace_table[j] = strdup(config_namespace_table[i].path);
+				cg_namespace_table[j] = strdup(
+					config_namespace_table[i].mount.path);
 				if (!cg_namespace_table[j]) {
 					last_errno = errno;
 					error = ECGOTHER;
@@ -652,15 +734,55 @@ error_out:
 	return error;
 }
 
-/*
- * The main function which does all the setup of the data structures
- * and finally creates the cgroups
+/**
+ * Free all memory allocated during cgroup_parse_config(), namely
+ * config_cgroup_table.
  */
-int cgroup_config_load_config(const char *pathname)
+static void cgroup_free_config(void)
 {
-	int error;
-	int namespace_enabled = 0;
-	int mount_enabled = 0;
+	int i;
+	if (config_cgroup_table) {
+		for (i = 0; i < cgroup_table_index; i++)
+			cgroup_free_controllers(
+					&config_cgroup_table[i]);
+		free(config_cgroup_table);
+		config_cgroup_table = NULL;
+	}
+	config_table_index = 0;
+}
+
+/**
+ * Applies default permissions/uid/gid to all groups in config file.
+ */
+static void cgroup_config_apply_default()
+{
+	int i;
+	if (config_cgroup_table) {
+		for (i = 0; i < cgroup_table_index; i++) {
+			struct cgroup *c = &config_cgroup_table[i];
+
+			if (c->control_dperm == NO_PERMS)
+				c->control_dperm = default_group.control_dperm;
+			if (c->control_fperm == NO_PERMS)
+				c->control_fperm = default_group.control_fperm;
+			if (c->control_gid == NO_UID_GID)
+				c->control_gid = default_group.control_gid;
+			if (c->control_uid == NO_UID_GID)
+				c->control_uid = default_group.control_uid;
+			if (c->task_fperm == NO_PERMS)
+				c->task_fperm = default_group.task_fperm;
+			if (c->tasks_gid == NO_UID_GID)
+				c->tasks_gid = default_group.tasks_gid;
+			if (c->tasks_uid == NO_UID_GID)
+				c->tasks_uid = default_group.tasks_uid;
+		}
+	}
+}
+
+static int cgroup_parse_config(const char *pathname)
+{
+	int ret;
+
 	yyin = fopen(pathname, "re");
 
 	if (!yyin) {
@@ -670,35 +792,100 @@ int cgroup_config_load_config(const char *pathname)
 	}
 
 	config_cgroup_table = calloc(MAX_CGROUPS, sizeof(struct cgroup));
-	if (yyparse() != 0) {
-		cgroup_dbg("Failed to parse file %s\n", pathname);
-		fclose(yyin);
-		free(config_cgroup_table);
-		return ECGCONFIGPARSEFAIL;
+	if (!config_cgroup_table) {
+		ret = ECGFAIL;
+		goto err;
 	}
+
+	/* Clear all internal variables so this function can be called twice. */
+	init_cgroup_table(config_cgroup_table, MAX_CGROUPS);
+	memset(config_namespace_table, 0, sizeof(config_namespace_table));
+	memset(config_mount_table, 0, sizeof(config_mount_table));
+	config_table_index = 0;
+	namespace_table_index = 0;
+	cgroup_table_index = 0;
+
+	if (!default_group_set) {
+		/* init the default cgroup */
+		init_cgroup_table(&default_group, 1);
+	}
+
+	/*
+	 * Parser calls longjmp() on really fatal error (like out-of-memory).
+	 */
+	ret = setjmp(parser_error_env);
+	if (!ret)
+		ret = yyparse();
+	if (ret) {
+		/*
+		 * Either yyparse failed or longjmp() was called.
+		 */
+		cgroup_dbg("Failed to parse file %s\n", pathname);
+		ret = ECGCONFIGPARSEFAIL;
+		goto err;
+	}
+
+err:
+	if (yyin)
+		fclose(yyin);
+	if (ret) {
+		cgroup_free_config();
+	}
+	return ret;
+}
+
+int _cgroup_config_compare_groups(const void *p1, const void *p2)
+{
+	const struct cgroup *g1 = p1;
+	const struct cgroup *g2 = p2;
+
+	return strcmp(g1->name, g2->name);
+}
+
+static void cgroup_config_sort_groups()
+{
+	qsort(config_cgroup_table, cgroup_table_index, sizeof(struct cgroup),
+			_cgroup_config_compare_groups);
+}
+
+/*
+ * The main function which does all the setup of the data structures
+ * and finally creates the cgroups
+ */
+int cgroup_config_load_config(const char *pathname)
+{
+	int error;
+	int namespace_enabled = 0;
+	int mount_enabled = 0;
+	int ret;
+
+	ret = cgroup_parse_config(pathname);
+	if (ret != 0)
+		return ret;
 
 	namespace_enabled = (config_namespace_table[0].name[0] != '\0');
 	mount_enabled = (config_mount_table[0].name[0] != '\0');
 
 	/*
-	 * The configuration should have either namespace or mount.
-	 * Not both and not none.
+	 * The configuration should have namespace or mount, not both.
 	 */
-	if (namespace_enabled == mount_enabled) {
+	if (namespace_enabled && mount_enabled) {
 		free(config_cgroup_table);
 		return ECGMOUNTNAMESPACE;
 	}
-
-	/*
-	 * We do not allow both mount and namespace sections in the
-	 * same configuration file. So test for that
-	 */
 
 	error = cgroup_config_mount_fs();
 	if (error)
 		goto err_mnt;
 
 	error = cgroup_init();
+	if (error == ECGROUPNOTMOUNTED && cgroup_table_index == 0) {
+		/*
+		 * The config file seems to be empty.
+		 */
+		error = 0;
+		goto err_mnt;
+	}
 	if (error)
 		goto err_mnt;
 
@@ -715,20 +902,147 @@ int cgroup_config_load_config(const char *pathname)
 	if (error)
 		goto err_mnt;
 
+	cgroup_config_apply_default();
 	error = cgroup_config_create_groups();
 	cgroup_dbg("creating all cgroups now, error=%d\n", error);
 	if (error)
 		goto err_grp;
 
-	fclose(yyin);
+	cgroup_free_config();
+
 	return 0;
 err_grp:
 	cgroup_config_destroy_groups();
 err_mnt:
 	cgroup_config_unmount_controllers();
-	free(config_cgroup_table);
-	fclose(yyin);
+	cgroup_free_config();
 	return error;
+}
+
+/* unmounts given mount, but only if it is empty */
+static int cgroup_config_try_unmount(struct cg_mount_table_s *mount_info)
+{
+	char *controller, *controller_list;
+	struct cg_mount_point *mount = &(mount_info->mount);
+	void *handle = NULL;
+	int ret, lvl;
+	struct cgroup_file_info info;
+	char *saveptr = NULL;
+
+	/* parse the first controller name from list of controllers */
+	controller_list = strdup(mount_info->name);
+	if (!controller_list) {
+		last_errno = errno;
+		return ECGOTHER;
+	}
+	controller = strtok_r(controller_list, ",", &saveptr);
+	if (!controller) {
+		free(controller_list);
+		return ECGINVAL;
+	}
+
+	/* check if the hierarchy is empty */
+	ret = cgroup_walk_tree_begin(controller, "/", 0, &handle, &info, &lvl);
+	free(controller_list);
+	if (ret == ECGCONTROLLEREXISTS)
+		return 0;
+	if (ret)
+		return ret;
+	/* skip the first found directory, it's '/' */
+	ret = cgroup_walk_tree_next(0, &handle, &info, lvl);
+	/* find any other subdirectory */
+	while (ret == 0) {
+		if (info.type == CGROUP_FILE_TYPE_DIR)
+			break;
+		ret = cgroup_walk_tree_next(0, &handle, &info, lvl);
+	}
+	cgroup_walk_tree_end(&handle);
+	if (ret == 0) {
+		cgroup_dbg("won't unmount %s: hieararchy is not empty\n",
+				mount_info->name);
+		return 0; /* the hieararchy is not empty */
+	}
+	if (ret != ECGEOF)
+		return ret;
+
+
+	/*
+	 * ret must be ECGEOF now = there is only root group in the hierarchy
+	 * -> unmount all mount points.
+	 */
+	ret = 0;
+	while (mount) {
+		int err;
+		cgroup_dbg("unmounting %s at %s\n", mount_info->name,
+				mount->path);
+		err = umount(mount->path);
+
+		if (err && !ret) {
+			ret = ECGOTHER;
+			last_errno = errno;
+		}
+		mount = mount->next;
+	}
+	return ret;
+}
+
+int cgroup_config_unload_config(const char *pathname, int flags)
+{
+	int ret, i, error;
+	int namespace_enabled = 0;
+	int mount_enabled = 0;
+
+	cgroup_dbg("cgroup_config_unload_config: parsing %s\n", pathname);
+	ret = cgroup_parse_config(pathname);
+	if (ret)
+		goto err;
+
+	namespace_enabled = (config_namespace_table[0].name[0] != '\0');
+	mount_enabled = (config_mount_table[0].name[0] != '\0');
+	/*
+	 * The configuration should have namespace or mount, not both.
+	 */
+	if (namespace_enabled && mount_enabled) {
+		free(config_cgroup_table);
+		return ECGMOUNTNAMESPACE;
+	}
+
+	ret = config_order_namespace_table();
+	if (ret)
+		goto err;
+
+	ret = config_validate_namespaces();
+	if (ret)
+		goto err;
+
+	/*
+	 * Delete the groups in reverse order, i.e. subgroups first, then
+	 * parents.
+	 */
+	cgroup_config_sort_groups();
+	for (i = cgroup_table_index-1; i >= 0; i--) {
+		struct cgroup *cgroup = &config_cgroup_table[i];
+		cgroup_dbg("removing %s\n", pathname);
+		error = cgroup_delete_cgroup_ext(cgroup, flags);
+		if (error && !ret) {
+			/* store the error, but continue deleting the rest */
+			ret = error;
+		}
+	}
+
+	if (mount_enabled) {
+		for (i = 0; i < config_table_index; i++) {
+			struct cg_mount_table_s *m = &(config_mount_table[i]);
+			cgroup_dbg("unmounting %s\n", m->name);
+			error = cgroup_config_try_unmount(m);
+			if (error && !ret)
+				ret = error;
+		}
+	}
+
+err:
+	cgroup_free_config();
+	return ret;
 }
 
 static int cgroup_config_unload_controller(const struct cgroup_mount_point *mount_info)
@@ -736,6 +1050,8 @@ static int cgroup_config_unload_controller(const struct cgroup_mount_point *moun
 	int ret, error;
 	struct cgroup *cgroup = NULL;
 	struct cgroup_controller *cgc = NULL;
+	char path[FILENAME_MAX];
+	void *handle;
 
 	cgroup = cgroup_new_cgroup(".");
 	if (cgroup == NULL)
@@ -751,13 +1067,21 @@ static int cgroup_config_unload_controller(const struct cgroup_mount_point *moun
 	if (ret != 0)
 		goto out_error;
 
-	error = umount(mount_info->path);
-	if (error) {
-		last_errno = errno;
-		ret = ECGOTHER;
-		goto out_error;
+	/* unmount everything */
+	ret = cgroup_get_subsys_mount_point_begin(mount_info->name, &handle,
+			path);
+	while (ret == 0) {
+		error = umount(path);
+		if (error) {
+			last_errno = errno;
+			ret = ECGOTHER;
+			goto out_error;
+		}
+		ret = cgroup_get_subsys_mount_point_next(&handle, path);
 	}
-
+	cgroup_get_subsys_mount_point_end(&handle);
+	if (ret == ECGEOF)
+		ret = 0;
 out_error:
 	if (cgroup)
 		cgroup_free(&cgroup);
@@ -780,14 +1104,7 @@ int cgroup_unload_cgroups(void)
 	}
 
 	error = cgroup_get_controller_begin(&ctrl_handle, &info);
-
-
-	if (error && error != ECGEOF) {
-		ret = error;
-		goto out_error;
-	}
-
-	while (error != ECGEOF) {
+	while (error == 0) {
 		if (!curr_path || strcmp(info.path, curr_path) != 0) {
 			if (curr_path)
 				free(curr_path);
@@ -796,20 +1113,21 @@ int cgroup_unload_cgroups(void)
 			if (!curr_path)
 				goto out_errno;
 
-			ret = cgroup_config_unload_controller(&info);
-
-			if (ret)
-				goto out_error;
+			error = cgroup_config_unload_controller(&info);
+			if (error) {
+				/* remember the error and continue unloading
+				 * the rest */
+				ret = error;
+				error = 0;
+			}
 		}
 
 		error = cgroup_get_controller_next(&ctrl_handle, &info);
-
-		if (error && error != ECGEOF) {
-			ret = error;
-			goto out_error;
-		}
 	}
-
+	if (error == ECGEOF)
+		error = 0;
+	if (error)
+		ret = error;
 out_error:
 	if (curr_path)
 		free(curr_path);
@@ -820,4 +1138,57 @@ out_errno:
 	last_errno = errno;
 	cgroup_get_controller_end(&ctrl_handle);
 	return ECGOTHER;
+}
+
+/**
+ * Defines the default group. The parser puts content of 'default { }' to
+ * topmost group in config_cgroup_table. This function copies the permissions
+ * from it to our default cgroup.
+ */
+int cgroup_config_define_default(void)
+{
+	struct cgroup *config_cgroup =
+			&config_cgroup_table[cgroup_table_index];
+
+	init_cgroup_table(&default_group, 1);
+	if (config_cgroup->control_dperm != NO_PERMS)
+		default_group.control_dperm = config_cgroup->control_dperm;
+	if (config_cgroup->control_fperm != NO_PERMS)
+		default_group.control_fperm = config_cgroup->control_fperm;
+	if (config_cgroup->control_gid != NO_UID_GID)
+		default_group.control_gid = config_cgroup->control_gid;
+	if (config_cgroup->control_uid != NO_UID_GID)
+		default_group.control_uid = config_cgroup->control_uid;
+	if (config_cgroup->task_fperm != NO_PERMS)
+		default_group.task_fperm = config_cgroup->task_fperm;
+	if (config_cgroup->tasks_gid != NO_UID_GID)
+		default_group.tasks_gid = config_cgroup->tasks_gid;
+	if (config_cgroup->tasks_uid != NO_UID_GID)
+		default_group.tasks_uid = config_cgroup->tasks_uid;
+
+	/*
+	 * Reset all changes made by 'default { }' to the topmost group so it
+	 * can be used by following 'group { }'.
+	 */
+	init_cgroup_table(config_cgroup, 1);
+	return 0;
+}
+
+int cgroup_config_set_default(struct cgroup *new_default)
+{
+	if (!new_default)
+		return ECGINVAL;
+
+	init_cgroup_table(&default_group, 1);
+
+	default_group.control_dperm = new_default->control_dperm;
+	default_group.control_fperm = new_default->control_fperm;
+	default_group.control_gid = new_default->control_gid;
+	default_group.control_uid = new_default->control_uid;
+	default_group.task_fperm = new_default->task_fperm;
+	default_group.tasks_gid = new_default->tasks_gid;
+	default_group.tasks_uid = new_default->tasks_uid;
+	default_group_set = 1;
+
+	return 0;
 }

@@ -23,10 +23,10 @@
 # Provides:             cgconfig
 # Required-Start:
 # Required-Stop:
-# Should-Start:
-# Should-Stop:
-# Short-Description:    start and stop the WLM configuration
-# Description:          This script allows us to create a default configuration
+# Should-Start:         ypbind
+# Should-Stop:          ypbind
+# Short-Description:    Create and setup control group filesystem(s)
+# Description:          Create and setup control group filesystem(s)
 ### END INIT INFO
 
 # get correct location of binaries from configure
