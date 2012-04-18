@@ -1,0 +1,23 @@
+From: Laurent Bigonville <bigon@bigon.be>
+Date: Wed, 18 Apr 2012 13:59:49 +0200
+Subject: Put the signal as the last parameter for killproc LSB function
+
+killproc from /lib/lsb/init-functions requires the signal to be the last
+parameter
+---
+ scripts/init.d/cgred.in |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/scripts/init.d/cgred.in b/scripts/init.d/cgred.in
+index 9e263db..47ba3be 100644
+--- a/scripts/init.d/cgred.in
++++ b/scripts/init.d/cgred.in
+@@ -102,7 +102,7 @@ stop()
+ 		log_success_msg
+ 		return 0
+ 	fi
+-	killproc -p $pidfile -TERM "$processname"
++	killproc -p $pidfile "$processname" -TERM
+ 	retval=$?
+ 	echo
+ 	if [ $retval -ne 0 ]; then
