@@ -12,3 +12,4 @@
 0012-Fix-cgconfig.conf-manpage-formatting-error.patch
 0013-Fix-spelling-mistake-in-cgcreate.patch
 0014-Put-the-signal-as-the-last-parameter-for-killproc-LS.patch
+0015-Call-kill-with-the-signal-name-instead-of-the-signal.patch

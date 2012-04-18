@@ -1,0 +1,23 @@
+From: Laurent Bigonville <bigon@bigon.be>
+Date: Wed, 18 Apr 2012 14:03:33 +0200
+Subject: Call kill with the signal name instead of the signal number
+
+Signals number are not consistent across all architectures, especially
+alpha, sparc and mips (see signal(7))
+---
+ scripts/init.d/cgred.in |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/scripts/init.d/cgred.in b/scripts/init.d/cgred.in
+index 47ba3be..a18a580 100644
+--- a/scripts/init.d/cgred.in
++++ b/scripts/init.d/cgred.in
+@@ -143,7 +143,7 @@ case "$1" in
+ 	reload|flash|force-reload)
+ 		if [ -f "$lockfile" ]; then
+ 			echo $"Reloading rules configuration..."
+-			kill -s 12 `cat ${pidfile}`
++			kill -s SIGUSR2 `cat ${pidfile}`
+ 			RETVAL=$?
+ 			if [ $RETVAL -eq 0 ] ; then
+ 				log_success_msg
