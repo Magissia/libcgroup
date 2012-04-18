@@ -4,7 +4,8 @@
 
 override_dh_auto_configure:
 	autoreconf --install --force
-	dh_auto_configure -- --libdir /lib
+	dh_auto_configure -- --libdir /lib \
+                             --enable-opaque-hierarchy="name=systemd"
 
 override_dh_installinit:
 	cp scripts/init.d/cgconfig debian/cgroup-bin.cgconfig.init
