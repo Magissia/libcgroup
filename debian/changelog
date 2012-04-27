@@ -1,3 +1,15 @@
+libcgroup (0.37.1-2) unstable; urgency=low
+
+  [ Laurent Bigonville ]
+  * [07baa0c] Bump Standards-Version to 3.9.3 (no further changes)
+  * [b0189dc] Bump debhelper compatibility to 9. (Closes: #654819)
+  * [b072a58] Put the signal as the last parameter for killproc in cgreg
+    initscript (Closes: #627264)
+  * [98cdcd2] Call kill with the signal name instead of the signal number in
+    cgreg initscript (Closes: #607816)
+
+ -- Jon Bernard <jbernard@debian.org>  Fri, 27 Apr 2012 18:08:20 -0400
+
 libcgroup (0.37.1-1) unstable; urgency=low
 
   * [f7cc41d] New upstream version 0.37.1 (Closes: #615987)
