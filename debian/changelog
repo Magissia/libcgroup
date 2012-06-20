@@ -1,3 +1,19 @@
+libcgroup (0.38-1) unstable; urgency=low
+
+  [ Jon Bernard ]
+  * [1165703] New upstream version 0.38 (Closes: 664886)
+  * [c985151] Remove obsolete debian patches
+  * [baa3edd] Remove initscripts cgconfig and cgred
+  * [ffe7f33] Include systemd README in cgroup-bin
+
+  [ Laurent Bigonville ]
+  * [0a54950] Disable compile time tests, the package FTBFS trying to load cgroups
+  * [1ed98ff] debian/libcgroup1.symbols: Add .symbols file (Closes: #665958)
+  * [c9eeddb] Call configure with --enable-opaque-hierarchy="name=systemd"
+    (Closes: #664886)
+
+ -- Jon Bernard <jbernard@debian.org>  Tue, 19 Jun 2012 20:38:38 -0400
+
 libcgroup (0.37.1-2) unstable; urgency=low
 
   [ Laurent Bigonville ]
