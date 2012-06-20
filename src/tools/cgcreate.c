@@ -39,56 +39,26 @@ static void usage(int status, const char *program_name)
 			program_name);
 	} else {
 		fprintf(stdout, "Usage: %s [-h] [-f mode] [-d mode] "\
-			"[-t <tuid>:<tgid>] [-a <agid>:<auid>] "\
+			"[-s mode] [-t <tuid>:<tgid>] [-a <agid>:<auid>] "\
 			"-g <controllers>:<path> [-g ...]\n",
 			program_name);
-		fprintf(stdout, "  -t <tuid>:<tgid>		Set "\
-			"the task permission\n");
-		fprintf(stdout, "  -a <tuid>:<tgid>		Set "\
-			"the admin permission\n");
+		fprintf(stdout, "  -a <tuid>:<tgid>		Owner "\
+			"of the group and all its files\n");
+		fprintf(stdout, "  -d, --dperm=mode		Group "\
+			"directory permissions\n");
+		fprintf(stdout, "  -f, --fperm=mode		Group "\
+			"file permissions\n");
 		fprintf(stdout, "  -g <controllers>:<path>	Control "\
 			"group which should be added\n");
-		fprintf(stdout, "  -h,--help			Display "\
+		fprintf(stdout, "  -h, --help			Display "\
 			"this help\n");
-		fprintf(stdout, "  -f, --fperm mode		Group "\
-			"file permissions\n");
-		fprintf(stdout, "  -d, --dperm mode		Group "\
-			"direrory permissions\n");
+		fprintf(stdout, "  -s --tperm=mode		Tasks "\
+				"file permissions\n");
+		fprintf(stdout, "  -t <tuid>:<tgid>		Owner "\
+			"of the tasks file\n");
 	}
 }
 
-/* allowed mode strings are octal version: "755" */
-
-int parse_mode(char *string, mode_t *pmode, const char *program_name)
-{
-	mode_t mode = 0;
-	int pos = 0; /* position of the number iin string */
-	int i;
-	int j = 64;
-
-	while (pos < 3) {
-		if ('0' <= string[pos] && string[pos] < '8') {
-			i = (int)string[pos] - (int)'0';
-			/* parse the permission triple*/
-			mode = mode + i*j;
-			j = j / 8;
-		} else {
-			fprintf(stdout, "%s wrong mode format %s",
-				program_name, string);
-			return -1;
-		}
-		pos++;
-	}
-
-	/* the string have contains three characters */
-	if (string[pos] != '\0') {
-		fprintf(stdout, "%s wrong mode format %s",
-			program_name, string);
-		return -1;
-	}
-	*pmode = mode;
-	return 0;
-}
 
 int main(int argc, char *argv[])
 {
@@ -103,16 +73,9 @@ int main(int argc, char *argv[])
 		{"", required_argument, NULL, 'g'},
 		{"dperm", required_argument, NULL, 'd'},
 		{"fperm", required_argument, NULL, 'f' },
+		{"tperm", required_argument, NULL, 's' },
 		{0, 0, 0, 0},
 	};
-
-	/* Structure to get GID from group name */
-	struct group *grp = NULL;
-	char *grp_string = NULL;
-
-	/* Structure to get UID from user name */
-	struct passwd *pwd = NULL;
-	char *pwd_string = NULL;
 
 	uid_t tuid = CGRULE_INVALID, auid = CGRULE_INVALID;
 	gid_t tgid = CGRULE_INVALID, agid = CGRULE_INVALID;
@@ -125,8 +88,9 @@ int main(int argc, char *argv[])
 	int capacity = argc;
 
 	/* permission variables */
-	mode_t dir_mode = 0;
-	mode_t file_mode = 0;
+	mode_t dir_mode = NO_PERMS;
+	mode_t file_mode = NO_PERMS;
+	mode_t tasks_mode = NO_PERMS;
 	int dirm_change = 0;
 	int filem_change = 0;
 
@@ -143,7 +107,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* parse arguments */
-	while ((c = getopt_long(argc, argv, "a:t:g:hd:f:", long_opts, NULL))
+	while ((c = getopt_long(argc, argv, "a:t:g:hd:f:s:", long_opts, NULL))
 		> 0) {
 		switch (c) {
 		case 'h':
@@ -152,74 +116,13 @@ int main(int argc, char *argv[])
 			goto err;
 		case 'a':
 			/* set admin uid/gid */
-			if (optarg[0] == ':')
-				grp_string = strtok(optarg, ":");
-			else {
-				pwd_string = strtok(optarg, ":");
-				if (pwd_string != NULL)
-					grp_string = strtok(NULL, ":");
-			}
-
-			if (pwd_string != NULL) {
-				pwd = getpwnam(pwd_string);
-				if (pwd != NULL) {
-					auid = pwd->pw_uid;
-				} else {
-					fprintf(stderr, "%s: "
-						"can't find uid of user %s.\n",
-						argv[0], pwd_string);
-					ret = -1;
-					goto err;
-				}
-			}
-			if (grp_string != NULL) {
-				grp = getgrnam(grp_string);
-				if (grp != NULL)
-					agid = grp->gr_gid;
-				else {
-					fprintf(stderr, "%s: "
-						"can't find gid of group %s.\n",
-						argv[0], grp_string);
-					ret = -1;
-					goto err;
-				}
-			}
-
+			if (parse_uid_gid(optarg, &auid, &agid, argv[0]))
+				goto err;
 			break;
 		case 't':
 			/* set task uid/gid */
-			if (optarg[0] == ':')
-				grp_string = strtok(optarg, ":");
-			else {
-				pwd_string = strtok(optarg, ":");
-				if (pwd_string != NULL)
-					grp_string = strtok(NULL, ":");
-			}
-
-			if (pwd_string != NULL) {
-				pwd = getpwnam(pwd_string);
-				if (pwd != NULL) {
-					tuid = pwd->pw_uid;
-				} else {
-					fprintf(stderr, "%s: "
-						"can't find uid of user %s.\n",
-						argv[0], pwd_string);
-					ret = -1;
-					goto err;
-				}
-			}
-			if (grp_string != NULL) {
-				grp = getgrnam(grp_string);
-				if (grp != NULL)
-					tgid = grp->gr_gid;
-				else {
-					fprintf(stderr, "%s: "
-						"can't find gid of group %s.\n",
-						argv[0], grp_string);
-					ret = -1;
-					goto err;
-				}
-			}
+			if (parse_uid_gid(optarg, &tuid, &tgid, argv[0]))
+				goto err;
 			break;
 		case 'g':
 			ret = parse_cgroup_spec(cgroup_list, optarg, capacity);
@@ -239,6 +142,10 @@ int main(int argc, char *argv[])
 		case 'f':
 			filem_change = 1;
 			ret = parse_mode(optarg, &file_mode, argv[0]);
+			break;
+		case 's':
+			filem_change = 1;
+			ret = parse_mode(optarg, &tasks_mode, argv[0]);
 			break;
 		default:
 			usage(1, argv[0]);
@@ -302,6 +209,9 @@ int main(int argc, char *argv[])
 		}
 
 		/* all variables set so create cgroup */
+		if (dirm_change | filem_change)
+			cgroup_set_permissions(cgroup, dir_mode, file_mode,
+					tasks_mode);
 		ret = cgroup_create_cgroup(cgroup, 0);
 		if (ret) {
 			fprintf(stderr, "%s: "
@@ -309,17 +219,6 @@ int main(int argc, char *argv[])
 				argv[0], cgroup->name, cgroup_strerror(ret));
 			cgroup_free(&cgroup);
 			goto err;
-		}
-		if (dirm_change + filem_change > 0) {
-			ret = cg_chmod_recursive(cgroup, dir_mode, dirm_change,
-				file_mode, filem_change);
-			if (ret) {
-				fprintf(stderr, "%s: can't change permission " \
-					"of cgroup %s: %s\n", argv[0],
-					cgroup->name, cgroup_strerror(ret));
-				cgroup_free(&cgroup);
-				goto err;
-			}
 		}
 		cgroup_free(&cgroup);
 	}

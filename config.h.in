@@ -116,6 +116,9 @@
    */
 #undef LT_OBJDIR
 
+/* Define to ignore specific hierarchy. */
+#undef OPAQUE_HIERARCHY
+
 /* Name of package */
 #undef PACKAGE
 

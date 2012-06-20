@@ -101,7 +101,7 @@ int load_list(char *filename, struct black_list_type **p_list)
 		return 1;
 	}
 
-	/* go through the all configuration file and search the line */
+	/* go through the configuration file and search the line */
 	while (fgets(buf, FILENAME_MAX, fw) != NULL) {
 		buf[FILENAME_MAX-1] = '\0';
 		i = 0;
@@ -113,18 +113,27 @@ int load_list(char *filename, struct black_list_type **p_list)
 		if ((buf[i] == '#') || (buf[i] == '\0'))
 			continue;
 
+		ret = sscanf(buf, "%s", name);
+		if (ret == 0)
+			continue;
+
 		new = (struct black_list_type *)malloc(sizeof
 			(struct black_list_type));
 		if (new == NULL) {
 			fprintf(stderr, "ERROR: Memory allocation problem "
 				"(%s)\n", strerror(errno));
-			*p_list = NULL;
-			return 1;
+			ret = 1;
+			goto err;
 		}
 
-		ret = sscanf(buf, "%s", name);
 		new->name = strdup(name);
-
+		if (new->name == NULL) {
+			fprintf(stderr, "ERROR: Memory allocation problem "
+				"(%s)\n", strerror(errno));
+			ret = 1;
+			free(new);
+			goto err;
+		}
 		new->next = NULL;
 
 		/* update the variables list */
@@ -138,8 +147,21 @@ int load_list(char *filename, struct black_list_type **p_list)
 	}
 
 	fclose(fw);
+
 	*p_list = start;
 	return 0;
+
+err:
+	fclose(fw);
+	new = start;
+	while (new != NULL) {
+		end = new->next;
+		free(new->name);
+		free(new);
+		new = end;
+	}
+	*p_list = NULL;
+	return ret;
 }
 
 /* free list structure */
@@ -319,7 +341,10 @@ static int display_cgroup_data(struct cgroup *group,
 		}
 
 		/* print the controller header */
-		fprintf(of, "\t%s {\n", controller[i]);
+		if (strncmp(controller[i], "name=", 5) == 0)
+			fprintf(of, "\t\"%s\" {\n", controller[i]);
+		else
+			fprintf(of, "\t%s {\n", controller[i]);
 		i++;
 		nr_var = cgroup_get_value_name_count(group_controller);
 
@@ -461,7 +486,8 @@ static int display_controller_data(
 			if (group == NULL) {
 				printf("cannot create group '%s'\n",
 					cgroup_name);
-				return -1;
+				ret = ECGFAIL;
+				goto err;
 			}
 
 			ret = cgroup_get_cgroup(group);
@@ -568,15 +594,43 @@ static int parse_controllers(cont_name_t cont_names[CG_CONTROLLER_MAX],
 	return 0;
 }
 
+static int show_mountpoints(const char *controller)
+{
+	char path[FILENAME_MAX];
+	int ret;
+	void *handle;
+	int quote = 0;
+
+	if (strncmp(controller, "name=", 5) == 0)
+		quote = 1;
+
+	ret = cgroup_get_subsys_mount_point_begin(controller, &handle, path);
+	if (ret)
+		return ret;
+
+	while (ret == 0) {
+		if (quote)
+			printf("\t\"%s\" = %s;\n", controller, path);
+		else
+			printf("\t%s = %s;\n", controller, path);
+		ret = cgroup_get_subsys_mount_point_next(&handle, path);
+	}
+	cgroup_get_subsys_mount_point_end(&handle);
+
+	if (ret != ECGEOF)
+		return ret;
+	return 0;
+}
+
 /* print data about input mount points */
 /* TODO only wanted ones */
 static int parse_mountpoints(cont_name_t cont_names[CG_CONTROLLER_MAX],
 	const char *program_name)
 {
-	int ret;
+	int ret, final_ret = 0;
 	void *handle;
 	struct controller_data info;
-	char *mount_point;
+	struct cgroup_mount_point mount;
 
 	/* start mount section */
 	fprintf(of, "mount {\n");
@@ -587,17 +641,14 @@ static int parse_mountpoints(cont_name_t cont_names[CG_CONTROLLER_MAX],
 
 		/* the controller attached to some hierarchy */
 		if  (info.hierarchy != 0) {
-			ret = cgroup_get_subsys_mount_point(info.name,
-				&mount_point);
+			ret = show_mountpoints(info.name);
 			if (ret != 0) {
 				/* the controller is not mounted */
 				if ((flags &  FL_SILENT) == 0) {
 					fprintf(stderr, "ERROR: %s hierarchy "\
 						"not mounted\n", info.name);
 				}
-			} else
-				fprintf(of, "\t%s = %s;\n",
-					info.name, mount_point);
+			}
 		}
 
 		/* next controller */
@@ -608,20 +659,40 @@ static int parse_mountpoints(cont_name_t cont_names[CG_CONTROLLER_MAX],
 			fprintf(stderr,
 				"E: in get next controller %s\n",
 				cgroup_strerror(ret));
-			return ret;
 		}
+		final_ret = ret;
 	}
 
-	ret |= cgroup_get_all_controller_end(&handle);
+	cgroup_get_all_controller_end(&handle);
+
+	/* process also named hierarchies */
+	ret = cgroup_get_controller_begin(&handle, &mount);
+	while (ret == 0) {
+		if (strncmp(mount.name, "name=", 5) == 0) {
+			ret = show_mountpoints(mount.name);
+			if (ret != 0)
+				break;
+		}
+		ret = cgroup_get_controller_next(&handle, &mount);
+	}
+	if (ret != ECGEOF) {
+		if ((flags &  FL_SILENT) != 0) {
+			fprintf(stderr,
+				"E: in get next controller %s\n",
+				cgroup_strerror(ret));
+		}
+		final_ret = ret;
+	}
+	cgroup_get_controller_end(&handle);
 
 	/* finish mount section */
 	fprintf(of, "}\n\n");
-	return ret;
+	return final_ret;
 }
 
 int main(int argc, char *argv[])
 {
-	int ret = 0;
+	int ret = 0, err;
 	int c;
 
 	int i;
@@ -705,31 +776,34 @@ int main(int argc, char *argv[])
 		ret  = load_list(BLACKLIST_CONF, &black_list);
 	}
 	if (ret != 0)
-		return ret;
+		goto finish;
 
 	/* whitelist */
 	if (flags & FL_WHITE)
 		ret = load_list(wl_file, &white_list);
 	if (ret != 0)
-		return ret;
+		goto finish;
 
 	/* print the header */
 	fprintf(of, "# Configuration file generated by cgsnapshot\n");
 
 	/* initialize libcgroup */
 	ret = cgroup_init();
-
-	if (ret) {
+	if (ret)
 		/* empty configuration file */
-		return ret;
-	}
+		goto finish;
 
 	/* print mount points section */
 	ret = parse_mountpoints(wanted_cont, argv[0]);
+	/* continue with processing on error*/
 
 	/* print hierarchies section */
-	ret = parse_controllers(wanted_cont, argv[0]);
+	/*replace error from parse_mountpoints() only with another error*/
+	err = parse_controllers(wanted_cont, argv[0]);
+	if (err)
+		ret = err;
 
+finish:
 	free_list(black_list);
 	free_list(white_list);
 

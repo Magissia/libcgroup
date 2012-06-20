@@ -10,40 +10,34 @@ cgcreate \- create new cgroup(s)
 \fB-g\fR <\fIcontrollers>:<path\fR> [\fB-g\fR ...]
 
 .SH DESCRIPTION
-The command creates new cgroup(s) defined by option 
+The command creates new cgroup(s) defined by the options
 \fB-g\fR.
-
-
-
-.TP
-.B -t <tuid>:<tgid>
-defines the name of the user and the group, which owns tasks
-file of the defined control group. I.e. this user and members
-of this group have write access to the file.
-The default value is the same as has the parent cgroup.
 
 .TP
 .B -a <agid>:<auid>
-defines the name of the user and the group, which owns the
+defines the name of the user and the group which own the
 rest of the defined control group’s files. These users are 
 allowed to set subsystem parameters and create subgroups.
 The default value is the same as has the parent cgroup.
 
 .TP
-.B -d, --dperm mode
-sets the permission mode of control groups directory.
-The mode have to be set using octal numbers e.g.
+.B -d, --dperm=mode
+sets the permissions of a control groups directory.
+The permissions needs to be specified as octal numbers e.g.
 \fB-d 775\fR.
 
 .TP
-.B -f, --fperm mode
-sets the permission mode of control groups files.
-The mode have to be set using octal numbers e.g.
+.B -f, --fperm=mode
+sets the permissions of the control groups parameters.
+The permissions needs to be specified as octal numbers e.g.
 \fB-f 775\fR.
+The value is not used as given because the current owner's
+permissions are used as an umask (so 777 will set group and
+others permissions to the owners permissions).
 
 .TP
 .B -g <controllers>:<path>
-defines control groups which will be added.
+defines control groups to be added.
 \fBcontrollers\fR is a list of controllers and
 \fBpath\fR is the relative path to control groups
 in the given controllers list. This option can be specified
@@ -52,6 +46,23 @@ multiple times.
 .TP
 .B -h, --help
 display this help and exit
+
+.TP
+.B -s, --tperm=mode
+sets the permissions of the control group tasks file.
+The permissions needs to be specified as octal numbers e.g.
+\fB-f 775\fR.
+The value is not used as given because the current owner's
+permissions are used as an umask (so 777 will set group and
+others permissions to the owners permissions).
+
+.TP
+.B -t <tuid>:<tgid>
+defines the name of the user and the group, which owns tasks
+file of the defined control group. I.e. this user and members
+of this group have write access to the file.
+The default value is the same as has the parent cgroup.
+
 
 .SH FILES
 
