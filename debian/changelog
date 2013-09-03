@@ -1,3 +1,9 @@
+libcgroup (0.38-2) unstable; urgency=low
+
+  * [2fa7e1a] Orphan package, set maintaier to QA Group
+
+ -- Jon Bernard <jbernard@debian.org>  Tue, 03 Sep 2013 15:48:02 -0400
+
 libcgroup (0.38-1) unstable; urgency=low
 
   [ Jon Bernard ]
