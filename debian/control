@@ -1,6 +1,6 @@
 Source: libcgroup
 Priority: extra
-Maintainer: Jon Bernard <jbernard@debian.org>
+Maintainer: Debian QA Group <packages@qa.debian.org>
 Build-Depends: debhelper (>= 9), autoconf, automake, libtool, bison, flex, libpam0g-dev
 Standards-Version: 3.9.3
 Section: libs
