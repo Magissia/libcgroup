@@ -1,1 +1,1 @@
-lib/security/*.so
+lib/*/security/*.so

@@ -1,1 +1,1 @@
-lib/libcgroup.so.*
+lib/*/*.so.*

@@ -1,3 +1,23 @@
+libcgroup (0.40~rc1-3) experimental; urgency=low
+
+  * Moving to priority optional.
+  * Sorting package sections in control.
+  * Sorting packages in control.
+  * Sorting depends fields.
+  * Wrapping build-depends.
+  * Simplyfing docs debhelper file.
+  * Removing extra space in makeshlibs override for consistency.
+  * Updating package descriptions.
+  * Simplyfing renaming in pam_cgroup.so in rules.
+  * Don't compress examples so they can be used directly via symlinks.
+  * Updating symbols file.
+  * Correcting libcgroup.so link.
+  * Building package with multiarch paths.
+  * Updating copyright to standards format 1.0.
+  * Updating todo file.
+
+ -- Daniel Baumann <mail@daniel-baumann.ch>  Thu, 19 Sep 2013 11:54:16 +0200
+
 libcgroup (0.40~rc1-2) experimental; urgency=low
 
   * Adding patch to refer to /sys/fs/cgroup as cgroup directory.
