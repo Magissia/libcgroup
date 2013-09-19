@@ -1,1 +1,1 @@
-lib/security/pam_cgroup.so
+lib/security/*.so

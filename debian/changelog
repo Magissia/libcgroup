@@ -1,3 +1,30 @@
+libcgroup (0.40~rc1-1) experimental; urgency=low
+
+  * Merging upstream version 0.40~rc1.
+  * Adding dpkg-source local-options to abort on upstream changes.
+  * Building source package with compression type xz.
+  * Building binary packages with compression type xz.
+  * Removing watch file.
+  * Building with dh-autoreconf.
+  * Updating to standards version 3.9.4.
+  * Adding vcs fields.
+  * Running dh_install with --fail-missing.
+  * Sorting overrides in rules alphabetically.
+  * Rewrapping rules file.
+  * Explicitly assigning news file to cgroup-bin.
+  * Using tabs in debhelper install files as separator.
+  * Updating homepage field.
+  * Adding todo file.
+  * Updating install files and overrides.
+
+ -- Daniel Baumann <mail@daniel-baumann.ch>  Thu, 19 Sep 2013 07:28:00 +0200
+
+libcgroup (0.38-3) unstable; urgency=low
+
+  * New maintainer (Closes: #695231).
+
+ -- Daniel Baumann <mail@daniel-baumann.ch>  Mon, 16 Sep 2013 20:37:30 +0200
+
 libcgroup (0.38-2) unstable; urgency=low
 
   * [2fa7e1a] Orphan package, set maintaier to QA Group

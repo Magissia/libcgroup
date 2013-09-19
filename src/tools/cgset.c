@@ -63,9 +63,14 @@ static void usage(int status, const char *program_name)
 			program_name);
 	else {
 		printf("Usage: %s [-r <name=value>]  <cgroup_path> ...\n"
-			"   or: %s --copy-from <source_cgrup_path> "
+			"   or: %s --copy-from <source_cgroup_path> "
 			    "<cgroup_path> ...\n",
 			program_name, program_name);
+		printf("Set the parameters of given cgroup(s)\n");
+		printf("  -r, --variable <name>                 "\
+			"Define parameter to display\n");
+		printf("  --copy-from <source_cgroup_path>      "\
+			"Control group whose parameters will be copied\n");
 	}
 }
 

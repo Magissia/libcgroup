@@ -1,12 +1,12 @@
 Source: libcgroup
 Priority: extra
-Maintainer: Debian QA Group <packages@qa.debian.org>
-Build-Depends: debhelper (>= 9), autoconf, automake, libtool, bison, flex, libpam0g-dev
-Standards-Version: 3.9.3
+Maintainer: Daniel Baumann <mail@daniel-baumann.ch>
+Build-Depends: debhelper (>= 9), dh-autoreconf, autotools-dev, bison, flex, libpam0g-dev
+Standards-Version: 3.9.4
 Section: libs
-Vcs-Git: git://git.debian.org/git/collab-maint/libcgroup.git
-Vcs-Browser: http://git.debian.org/?p=collab-maint/libcgroup.git;a=summary
-Homepage: http://sourceforge.net/projects/libcg/
+Homepage: http://libcg.sourceforge.net/
+Vcs-Browser: http://daniel-baumann.ch/gitweb/?p=debian/packages/libcgroup.git
+Vcs-Git: git://daniel-baumann.ch/git/debian/packages/libcgroup.git
 
 Package: libcgroup-dev
 Section: libdevel

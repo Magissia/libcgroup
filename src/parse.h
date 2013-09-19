@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 2.5.  */
+/* A Bison parser, made by GNU Bison 2.6.1.  */
 
 /* Bison interface for Yacc-like parsers in C
    
-      Copyright (C) 1984, 1989-1990, 2000-2011 Free Software Foundation, Inc.
+      Copyright (C) 1984, 1989-1990, 2000-2012 Free Software Foundation, Inc.
    
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,15 @@
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
+#ifndef YY_PARSE_H
+# define YY_PARSE_H
+/* Enabling traces.  */
+#ifndef YYDEBUG
+# define YYDEBUG 0
+#endif
+#if YYDEBUG
+extern int yydebug;
+#endif
 
 /* Tokens.  */
 #ifndef YYTOKENTYPE
@@ -44,7 +53,8 @@
      TASK = 262,
      ADMIN = 263,
      NAMESPACE = 264,
-     DEFAULT = 265
+     DEFAULT = 265,
+     TEMPLATE = 266
    };
 #endif
 /* Tokens.  */
@@ -56,15 +66,14 @@
 #define ADMIN 263
 #define NAMESPACE 264
 #define DEFAULT 265
-
+#define TEMPLATE 266
 
 
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
 {
-
-/* Line 2068 of yacc.c  */
+/* Line 2049 of yacc.c  */
 #line 42 "parse.y"
 
 	char *name;
@@ -73,9 +82,8 @@ typedef union YYSTYPE
 	struct cgroup_dictionary *values;
 
 
-
-/* Line 2068 of yacc.c  */
-#line 79 "parse.h"
+/* Line 2049 of yacc.c  */
+#line 87 "parse.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -84,4 +92,18 @@ typedef union YYSTYPE
 
 extern YYSTYPE yylval;
 
+#ifdef YYPARSE_PARAM
+#if defined __STDC__ || defined __cplusplus
+int yyparse (void *YYPARSE_PARAM);
+#else
+int yyparse ();
+#endif
+#else /* ! YYPARSE_PARAM */
+#if defined __STDC__ || defined __cplusplus
+int yyparse (void);
+#else
+int yyparse ();
+#endif
+#endif /* ! YYPARSE_PARAM */
 
+#endif /* !YY_PARSE_H  */
