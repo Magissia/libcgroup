@@ -1,3 +1,15 @@
+libcgroup (0.40~rc1-2) experimental; urgency=low
+
+  * Adding patch to refer to /sys/fs/cgroup as cgroup directory.
+  * Adding patch to correct sanity checks in example initscripts (Closes:
+    #704926).
+  * Adding cgroup-bin bug-script to show kernel cmdline in bug reports.
+  * Updating todo file.
+  * Adding patch to update template documentation to match template code
+    (Closes: #682748).
+
+ -- Daniel Baumann <mail@daniel-baumann.ch>  Thu, 19 Sep 2013 08:33:12 +0200
+
 libcgroup (0.40~rc1-1) experimental; urgency=low
 
   * Merging upstream version 0.40~rc1.
