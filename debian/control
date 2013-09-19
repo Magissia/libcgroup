@@ -14,12 +14,14 @@ Homepage: http://libcg.sourceforge.net/
 Vcs-Browser: http://daniel-baumann.ch/gitweb/?p=debian/packages/libcgroup.git
 Vcs-Git: git://daniel-baumann.ch/git/debian/packages/libcgroup.git
 
-Package: cgroup-bin
+Package: cgroup-tools
 Section: admin
 Architecture: any
 Depends:
  ${misc:Depends},
  ${shlibs:Depends},
+Conflicts: cgroup-bin (<< 0.40~rc1-3~)
+Replaces: cgroup-bin
 Description: control and monitor control groups (tools)
  Control Groups (cgroups) provide a mechanism for aggregating/partitioning sets
  of tasks, and all their future children, into hierarchical groups with
@@ -45,6 +47,26 @@ Description: control and monitor control groups (library)
  and the associated controllers.
  .
  This package contains the shared library.
+
+Package: libcgroup-dbg
+Section: debug
+Priority: extra
+Architecture: any
+Depends:
+ ${misc:Depends},
+ cgroup-tools (= ${binary:Version}),
+ libcgroup1 (= ${binary:Version}),
+ libcgroup-dev (= ${binary:Version}),
+ libpam-cgroup (= ${binary:Version}),
+Description: control and monitor control groups (debug)
+ Control Groups (cgroups) provide a mechanism for aggregating/partitioning sets
+ of tasks, and all their future children, into hierarchical groups with
+ specialized behaviour.
+ .
+ libcgroup allows one to manipulate, control, administrate and monitor cgroups
+ and the associated controllers.
+ .
+ This package contains the debuging symbols.
 
 Package: libcgroup-dev
 Section: libdevel
@@ -79,3 +101,17 @@ Description: control and monitor control groups (PAM)
  This package contains the PAM module to move a user session into an existing
  cgroup by attempting to match uid and gid against the defined cgroup rules
  configuration.
+
+Package: cgroup-bin
+Section: oldlibs
+Priority: extra
+Architecture: all
+Depends:
+ ${misc:Depends},
+ cgroup-tools,
+Description: control and monitor control groups (transitional package)
+ Package to ease upgrading from older cgroup-bin packages to the new
+ cgroup-tools package.
+ .
+ This package can be purged at anytime once the cgroup-bin package has been
+ installed.

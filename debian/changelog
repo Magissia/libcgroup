@@ -1,3 +1,10 @@
+libcgroup (0.40~rc1-4) experimental; urgency=low
+
+  * Renaming cgroup-bin to cgroup-tools for consistency.
+  * Adding debug package.
+
+ -- Daniel Baumann <mail@daniel-baumann.ch>  Thu, 19 Sep 2013 12:02:22 +0200
+
 libcgroup (0.40~rc1-3) experimental; urgency=low
 
   * Moving to priority optional.
