@@ -4,7 +4,7 @@
 Name: libcgroup
 Summary: Tools and libraries to control and monitor control groups
 Group: System Environment/Libraries
-Version: 0.41.rc1
+Version: 0.41
 Release:        1%{?dist}
 License: LGPLv2+
 URL: http://libcg.sourceforge.net/

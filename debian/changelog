@@ -1,3 +1,10 @@
+libcgroup (0.41-1) experimental; urgency=low
+
+  * Merging upstream version 0.41.
+  * Updating copyright for 2014.
+
+ -- Daniel Baumann <mail@daniel-baumann.ch>  Thu, 16 Jan 2014 17:38:24 +0100
+
 libcgroup (0.41~rc1-1) experimental; urgency=low
 
   * Updating to standards version 3.9.5.
