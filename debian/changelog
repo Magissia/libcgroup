@@ -1,3 +1,9 @@
+libcgroup (0.41-2) unstable; urgency=low
+
+  * Building with dh --parallel.
+
+ -- Daniel Baumann <mail@daniel-baumann.ch>  Mon, 31 Mar 2014 21:02:06 +0200
+
 libcgroup (0.41-1) experimental; urgency=low
 
   * Merging upstream version 0.41.
