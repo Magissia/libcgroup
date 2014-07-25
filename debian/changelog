@@ -1,3 +1,9 @@
+libcgroup (0.41-4) unstable; urgency=low
+
+  * I don't care anymore, not worth it.. orphaning.
+
+ -- Daniel Baumann <mail@daniel-baumann.ch>  Fri, 25 Jul 2014 20:49:33 +0200
+
 libcgroup (0.41-3) unstable; urgency=low
 
   * Correcting GPL boilerplate texts in copyright.
