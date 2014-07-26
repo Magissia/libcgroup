@@ -17,6 +17,7 @@ Vcs-Git: git://anonscm.debian.org/collab-maint/libcgroup.git
 Package: cgroup-tools
 Section: admin
 Architecture: linux-any
+Multi-Arch: foreign
 Depends:
  ${misc:Depends},
  ${shlibs:Depends},
@@ -34,6 +35,9 @@ Description: control and monitor control groups (tools)
 
 Package: libcgroup1
 Architecture: linux-any
+Multi-Arch: same
+Pre-Depends:
+ ${misc:Pre-Depends}
 Depends:
  ${misc:Depends},
  ${shlibs:Depends},
@@ -51,6 +55,7 @@ Package: libcgroup-dbg
 Section: debug
 Priority: extra
 Architecture: linux-any
+Multi-Arch: same
 Depends:
  ${misc:Depends},
  cgroup-tools (= ${binary:Version}),
@@ -70,6 +75,7 @@ Description: control and monitor control groups (debug)
 Package: libcgroup-dev
 Section: libdevel
 Architecture: linux-any
+Multi-Arch: same
 Depends:
  ${misc:Depends},
  libcgroup1 (= ${binary:Version}),
@@ -86,6 +92,7 @@ Description: control and monitor control groups (development)
 Package: libpam-cgroup
 Section: admin
 Architecture: linux-any
+Multi-Arch: same
 Depends:
  ${misc:Depends},
  ${shlibs:Depends},
