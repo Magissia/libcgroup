@@ -11,8 +11,8 @@ Build-Depends:
  libpam-dev,
 Standards-Version: 3.9.5
 Homepage: http://libcg.sourceforge.net/
-Vcs-Browser: http://daniel-baumann.ch/gitweb/?p=debian/packages/libcgroup.git
-Vcs-Git: git://daniel-baumann.ch/git/debian/packages/libcgroup.git
+Vcs-Browser: http://anonscm.debian.org/gitweb/?p=collab-maint/libcgroup.git
+Vcs-Git: git://anonscm.debian.org/collab-maint/libcgroup.git
 
 Package: cgroup-tools
 Section: admin
