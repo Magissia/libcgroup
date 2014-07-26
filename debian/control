@@ -1,7 +1,7 @@
 Source: libcgroup
 Priority: optional
 Section: libs
-Maintainer: Debian QA Group <packages@qa.debian.org>
+Maintainer: Christian Kastner <debian@kvr.at>
 Build-Depends:
  debhelper (>= 9),
  dh-autoreconf,
