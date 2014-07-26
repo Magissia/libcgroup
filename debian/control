@@ -20,7 +20,7 @@ Architecture: linux-any
 Depends:
  ${misc:Depends},
  ${shlibs:Depends},
-Conflicts: cgroup-bin (<< 0.40~rc1-3~)
+Breaks: cgroup-bin (<< 0.40~rc1-3~)
 Replaces: cgroup-bin
 Description: control and monitor control groups (tools)
  Control Groups (cgroups) provide a mechanism for aggregating/partitioning sets
