@@ -1,5 +1,8 @@
-Author: Daniel Baumann <mail@daniel-baumann.ch>
-Description: Updating cgroup directory.
+From: Daniel Baumann <mail@daniel-baumann.ch>
+Date: Thu, 19 Sep 2013 08:33:12 +0200
+Subject: Updating cgroup directory
+
+Last-Update: 2014-07-26
 
 diff -Naurp libcgroup.orig/doc/man/cgconfig.conf.5 libcgroup/doc/man/cgconfig.conf.5
 --- libcgroup.orig/doc/man/cgconfig.conf.5

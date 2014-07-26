@@ -1,5 +1,8 @@
-Author: Daniel Baumann <mail@daniel-baumann.ch>
-Description: Correcting sanity checks in example initscripts (Closes: #704926).
+From: Daniel Baumann <mail@daniel-baumann.ch>
+Date: Thu, 19 Sep 2013 08:33:12 +0200
+Subject: Correcting sanity checks in example initscripts (Closes: #704926).
+
+Last-Update: 2014-07-26
 
 diff -Naurp libcgroup.orig/scripts/init.d/cgconfig.in libcgroup/scripts/init.d/cgconfig.in
 --- libcgroup.orig/scripts/init.d/cgconfig.in

@@ -1,5 +1,8 @@
-Author: Daniel Baumann <mail@daniel-baumann.ch>
-Description: Updating template documentation to match template code (Closes: #682748).
+From: Daniel Baumann <mail@daniel-baumann.ch>
+Date: Thu, 19 Sep 2013 08:33:12 +0200
+Subject: Updating template documentation to match template code (Closes: #682748).
+
+Last-Update: 2014-07-26
 
 diff -Naurp libcgroup.orig/doc/man/cgrules.conf.5 libcgroup/doc/man/cgrules.conf.5
 --- libcgroup.orig/doc/man/cgrules.conf.5
