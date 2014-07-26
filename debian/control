@@ -33,7 +33,6 @@ Description: control and monitor control groups (tools)
  This package contains the command-line tools.
 
 Package: libcgroup1
-Section: libs
 Architecture: linux-any
 Depends:
  ${misc:Depends},
