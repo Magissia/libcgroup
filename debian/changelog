@@ -1,3 +1,22 @@
+libcgroup (0.41-5) unstable; urgency=low
+
+  * debian/control:
+    - Set myself to new maintainer. Closes: #756092
+    - Use versioned Breaks instead of Conflicts
+    - Update Vcs- fields to collab-maint
+    - Drop redundant Section
+    - Add Multi-Arch fields
+  * debian/patches (refreshed):
+    - Update headers of existing patches to play more nicely with gbp-pq
+  * debian/watch:
+    - Create watch file
+  * debian/copyright:
+    - Added myself
+  * debian/patches (added):
+    - 0005-Syntax-fixes-for-man-pages
+
+ -- Christian Kastner <debian@kvr.at>  Sat, 26 Jul 2014 15:10:48 +0200
+
 libcgroup (0.41-4) unstable; urgency=low
 
   * I don't care anymore, not worth it.. orphaning.
