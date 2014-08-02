@@ -44,15 +44,14 @@ static void usage(int status, const char *program_name)
 		fprintf(stderr, "Wrong input parameters,"
 			" try %s -h' for more information.\n",
 			program_name);
-	} else {
-		fprintf(stdout, "Usage: %s [-h] [[-g] <controllers>:<path>] "\
-			"[...]\n", program_name);
-		fprintf(stdout, "  -g <controllers>:<path>   Control group "\
-			"to be displayed (-g is optional)\n");
-		fprintf(stdout, "  -h, --help                Display "\
-			"this help\n");
-		fprintf(stdout, "List all cgroups\n");
+		return;
 	}
+	printf("Usage: %s [-h] [[-g] <controllers>:<path>] [...]\n",
+		program_name);
+	printf("List all cgroups\n");
+	printf("  -g <controllers>:<path>	Control group to be displayed "\
+		"(-g is optional)\n");
+	printf("  -h, --help			Display this help\n");
 }
 
 /*

@@ -66,9 +66,6 @@ static __thread char errtext[MAXLEN];
 /* Check if cgroup_init has been called or not. */
 static int cgroup_initialized;
 
-/* Check if the rules cache has been loaded or not. */
-static bool cgroup_rules_loaded;
-
 /* List of configuration rules */
 static struct cgroup_rule_list rl;
 
@@ -122,9 +119,9 @@ static const char const *cgroup_ignored_tasks_files[] = { "tasks", NULL };
 static int cg_chown(const char *filename, uid_t owner, gid_t group)
 {
 	if (owner == NO_UID_GID)
-		owner = 0;
+		owner = getuid();
 	if (group == NO_UID_GID)
-		group = 0;
+		group = getgid();
 	return chown(filename, owner, group);
 }
 static int cg_chown_file(FTS *fts, FTSENT *ent, uid_t owner, gid_t group)
@@ -541,17 +538,6 @@ static int cgroup_parse_rules(bool cache, uid_t muid,
 	/* Loop variable. */
 	int i = 0;
 
-	/* Open the configuration file. */
-	pthread_rwlock_wrlock(&rl_lock);
-	fp = fopen(CGRULES_CONF_FILE, "re");
-	if (!fp) {
-		cgroup_err("Error: failed to open configuration file %s: %s\n",
-				CGRULES_CONF_FILE, strerror(errno));
-		last_errno = errno;
-		ret = ECGOTHER;
-		goto unlock;
-	}
-
 	/* Determine which list we're using. */
 	if (cache)
 		lst = &rl;
@@ -561,6 +547,15 @@ static int cgroup_parse_rules(bool cache, uid_t muid,
 	/* If our list already exists, clean it. */
 	if (lst->head)
 		cgroup_free_rule_list(lst);
+
+	/* Open the configuration file. */
+	pthread_rwlock_wrlock(&rl_lock);
+	fp = fopen(CGRULES_CONF_FILE, "re");
+	if (!fp) {
+		cgroup_warn("Warning: failed to open configuration file %s: %s\n",
+				CGRULES_CONF_FILE, strerror(errno));
+		goto unlock;
+	}
 
 	/* Now, parse the configuration file one line at a time. */
 	cgroup_dbg("Parsing configuration file.\n");
@@ -998,6 +993,8 @@ int cgroup_init(void)
 
 		if (mntopt) {
 			mntopt = strtok_r(mntopt, ",", &strtok_buffer);
+			if (!mntopt)
+				continue;
 			/*
 			 * Check if it is a duplicate
 			 */
@@ -1663,8 +1660,8 @@ int cgroup_create_cgroup(struct cgroup *cgroup, int ignore_ownership)
 			 * ignore it specifically if they wish.
 			 */
 			if (error) {
-				cgroup_warn("Warning: failed to set %s: %s (%d)\n",
-					path, cgroup_strerror(error), error);
+				cgroup_err("Error: failed to set %s: %s\n",
+					path, cgroup_strerror(error));
 				retval = ECGCANTSETVALUE;
 				continue;
 			}
@@ -2395,10 +2392,6 @@ int cgroup_get_cgroup(struct cgroup *cgroup)
 	pthread_rwlock_rdlock(&cg_mount_table_lock);
 	for (i = 0; i < CG_CONTROLLER_MAX &&
 			cg_mount_table[i].name[0] != '\0'; i++) {
-		/*
-		 * cgc will not leak, since it has to be freed using
-		 * cgroup_free_cgroup
-		 */
 		struct cgroup_controller *cgc;
 		struct stat stat_buffer;
 		int path_len;
@@ -2714,10 +2707,10 @@ char *cgroup_copy_with_slash(char *input)
 	int len = strlen(input);
 
 	/* if input does not end with '/', allocate one more space for it */
-	if ((input[len-2]) != '/')
+	if ((input[len-1]) != '/')
 		len = len+1;
 
-	output = (char *)malloc(sizeof(char)*(len));
+	output = (char *)malloc(sizeof(char)*(len+1));
 	if (output == NULL)
 		return NULL;
 
@@ -2940,11 +2933,11 @@ int cgroup_change_cgroup_flags(uid_t uid, gid_t gid,
 				available = FILENAME_MAX - j - 2;
 				/* Substitution */
 				switch(tmp->destination[++i]) {
-				case 'u':
+				case 'U':
 					written = snprintf(newdest+j, available,
 						"%d", uid);
 					break;
-				case 'U':
+				case 'u':
 					user_info = getpwuid(uid);
 					if(user_info) {
 						written = snprintf(newdest + j,
@@ -2955,11 +2948,11 @@ int cgroup_change_cgroup_flags(uid_t uid, gid_t gid,
 							available, "%d", uid);
 					}
 					break;
-				case 'g':
+				case 'G':
 					written = snprintf(newdest + j,
 						available, "%d", gid);
 					break;
-				case 'G':
+				case 'g':
 					group_info = getgrgid(gid);
 					if(group_info) {
 						written = snprintf(newdest + j,
@@ -2970,11 +2963,11 @@ int cgroup_change_cgroup_flags(uid_t uid, gid_t gid,
 							available, "%d", gid);
 					}
 					break;
-				case 'p':
+				case 'P':
 					written = snprintf(newdest + j,
 						available, "%d", pid);
 					break;
-				case 'P':
+				case 'p':
 					if(procname) {
 						written = snprintf(newdest + j,
 							available, "%s",
@@ -3132,9 +3125,12 @@ int cgroup_change_all_cgroups(void)
 		if (err)
 			continue;
 
-		err = cgroup_change_cgroup_flags(euid, egid, procname, pid, 0);
+		err = cgroup_change_cgroup_flags(euid,
+				egid, procname, pid, CGFLAG_USECACHE);
 		if (err)
 			cgroup_dbg("cgroup change pid %i failed\n", pid);
+
+		free(procname);
 	}
 
 	closedir(dir);
@@ -3238,9 +3234,6 @@ int cgroup_init_rules_cache(void)
 	if (ret) {
 		cgroup_dbg("Could not initialize rule cache, error was: %d\n",
 			ret);
-		cgroup_rules_loaded = false;
-	} else {
-		cgroup_rules_loaded = true;
 	}
 
 	return ret;
@@ -3313,7 +3306,7 @@ int cgroup_get_current_controller_path(pid_t pid, const char *controller,
 		}
 
 		token = strtok_r(controllers, ",", &savedptr);
-		do {
+		while (token) {
 			if (strncmp(controller, token, strlen(controller) + 1)
 								== 0) {
 				*current_path = strdup(cgroup_path);
@@ -3326,7 +3319,7 @@ int cgroup_get_current_controller_path(pid_t pid, const char *controller,
 				goto done;
 			}
 			token = strtok_r(NULL, ",", &savedptr);
-		} while (token);
+		}
 	}
 
 done:

@@ -8,7 +8,7 @@
 #define FLEX_SCANNER
 #define YY_FLEX_MAJOR_VERSION 2
 #define YY_FLEX_MINOR_VERSION 5
-#define YY_FLEX_SUBMINOR_VERSION 36
+#define YY_FLEX_SUBMINOR_VERSION 37
 #if YY_FLEX_SUBMINOR_VERSION > 0
 #define FLEX_BETA
 #endif
@@ -388,7 +388,7 @@ static yyconst flex_int32_t yy_ec[256] =
         1,    2,    1,    4,    5,    1,    6,    1,    1,    1,
         1,    7,    1,    6,    6,    6,    6,    6,    6,    6,
         6,    6,    6,    6,    6,    6,    6,    1,    1,    1,
-        1,    1,    1,    1,    6,    6,    6,    6,    6,    6,
+        1,    1,    1,    6,    6,    6,    6,    6,    6,    6,
         6,    6,    6,    6,    6,    6,    6,    6,    6,    6,
         6,    6,    6,    6,    6,    6,    6,    6,    6,    6,
         1,    1,    1,    1,    6,    1,    8,    6,    9,   10,
@@ -509,6 +509,8 @@ char *yytext;
 #include <libcgroup.h>
 #include <libcgroup-internal.h>
 #include "parse.h"
+#pragma GCC diagnostic ignored "-Wunused-function"
+
 int line_no = 1;
 jmp_buf parser_error_env;
 
@@ -518,7 +520,7 @@ jmp_buf parser_error_env;
 		longjmp(parser_error_env, 1); \
 	} while(0);
 #define YY_NO_INPUT 1
-#line 522 "lex.c"
+#line 524 "lex.c"
 
 #define INITIAL 0
 
@@ -701,9 +703,9 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 31 "lex.l"
+#line 33 "lex.l"
 
-#line 707 "lex.c"
+#line 709 "lex.c"
 
 	if ( !(yy_init) )
 		{
@@ -790,86 +792,86 @@ do_action:	/* This label is used only to access EOF actions. */
 case 1:
 /* rule 1 can match eol */
 YY_RULE_SETUP
-#line 32 "lex.l"
+#line 34 "lex.l"
 {line_no++;}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 33 "lex.l"
+#line 35 "lex.l"
 {/* DO NOTHING */}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 34 "lex.l"
+#line 36 "lex.l"
 {/* Comments */}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 35 "lex.l"
+#line 37 "lex.l"
 {/* Comments */}
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 36 "lex.l"
+#line 38 "lex.l"
 {return MOUNT;}
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 37 "lex.l"
+#line 39 "lex.l"
 {return TASK;}
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 38 "lex.l"
+#line 40 "lex.l"
 {return ADMIN;}
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 39 "lex.l"
+#line 41 "lex.l"
 {return PERM;}
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 40 "lex.l"
+#line 42 "lex.l"
 {return GROUP;}
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 41 "lex.l"
+#line 43 "lex.l"
 {return NAMESPACE;}
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 42 "lex.l"
+#line 44 "lex.l"
 {return TEMPLATE;}
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 43 "lex.l"
+#line 45 "lex.l"
 {return DEFAULT;}
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 44 "lex.l"
+#line 46 "lex.l"
 {yylval.name = strdup(yytext); return ID;}
 	YY_BREAK
 case 14:
 /* rule 14 can match eol */
 YY_RULE_SETUP
-#line 45 "lex.l"
+#line 47 "lex.l"
 {yylval.name = strdup(yytext+1); yylval.name[strlen(yylval.name)-1] = '\0'; return ID; }
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 46 "lex.l"
+#line 48 "lex.l"
 {return yytext[0];}
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 47 "lex.l"
+#line 49 "lex.l"
 ECHO;
 	YY_BREAK
-#line 873 "lex.c"
+#line 875 "lex.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -1599,7 +1601,7 @@ YY_BUFFER_STATE yy_scan_bytes  (yyconst char * yybytes, yy_size_t  _yybytes_len 
 	YY_BUFFER_STATE b;
 	char *buf;
 	yy_size_t n;
-	int i;
+	yy_size_t i;
     
 	/* Get memory for full buffer, including space for trailing EOB's. */
 	n = _yybytes_len + 2;
@@ -1829,7 +1831,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 47 "lex.l"
+#line 49 "lex.l"
 
 
 

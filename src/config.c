@@ -130,7 +130,7 @@ int config_insert_cgroup(char *cg_name, int flag)
 		break;
 	default:
 		return 0;
-		}
+	}
 
 	if (*table_index >= *max - 1) {
 		struct cgroup *newblk;
@@ -151,7 +151,17 @@ int config_insert_cgroup(char *cg_name, int flag)
 		memset(newblk + oldlen, 0, (*max - oldlen) *
 			sizeof(struct cgroup));
 		init_cgroup_table(newblk + oldlen, *max - oldlen);
-		config_cgroup_table = newblk;
+		config_table = newblk;
+		switch (flag) {
+		case CGROUP:
+			config_cgroup_table = config_table;
+			break;
+		case TEMPLATE:
+			config_template_table = config_table;
+			break;
+		default:
+			return 0;
+		}
 		cgroup_dbg("maximum %d\n", *max);
 		cgroup_dbg("reallocated config_table to %p\n",
 			config_table);
@@ -1450,7 +1460,7 @@ int cgroup_reload_cached_templates(char *pathname)
 	}
 	template_table_index = 0;
 
-	if (config_template_table_index != 0) {
+	if ((config_template_table_index != 0) || (config_table_index != 0)) {
 		/* config template structures have to be free as well*/
 		cgroup_free_config();
 	}
@@ -1473,7 +1483,24 @@ int cgroup_reload_cached_templates(char *pathname)
 	}
 
 	for (i = 0; i < template_table_index; i++) {
-		cgroup_copy_cgroup(&config_template_table[i], &template_table[i]);
+		cgroup_copy_cgroup(&template_table[i],
+			&config_template_table[i]);
+		strcpy((template_table[i]).name,
+			(config_template_table[i]).name);
+		template_table[i].tasks_uid =
+			config_template_table[i].tasks_uid;
+		template_table[i].tasks_gid =
+			config_template_table[i].tasks_gid;
+		template_table[i].task_fperm =
+			config_template_table[i].task_fperm;
+		template_table[i].control_uid =
+			config_template_table[i].control_uid;
+		template_table[i].control_gid =
+			config_template_table[i].control_gid;
+		template_table[i].control_fperm =
+			config_template_table[i].control_fperm;
+		template_table[i].control_dperm =
+			config_template_table[i].control_dperm;
 	}
 
 	return ret;
@@ -1488,7 +1515,16 @@ int cgroup_init_templates_cache(char *pathname)
 	int ret = 0;
 	int i;
 
-	if (config_template_table_index != 0) {
+	if (template_table) {
+		/* template structures have to be free */
+		for (i = 0; i < template_table_index; i++)
+			cgroup_free_controllers(&template_table[i]);
+		free(template_table);
+		template_table = NULL;
+	}
+	template_table_index = 0;
+
+	if ((config_template_table_index != 0) || (config_table_index != 0)) {
 		/* config structures have to be clean */
 		cgroup_free_config();
 	}
@@ -1511,7 +1547,24 @@ int cgroup_init_templates_cache(char *pathname)
 	}
 
 	for (i = 0; i < template_table_index; i++) {
-		cgroup_copy_cgroup(&config_template_table[i], &template_table[i]);
+		cgroup_copy_cgroup(&template_table[i],
+			&config_template_table[i]);
+		strcpy((template_table[i]).name,
+			(config_template_table[i]).name);
+		template_table[i].tasks_uid =
+			config_template_table[i].tasks_uid;
+		template_table[i].tasks_gid =
+			config_template_table[i].tasks_gid;
+		template_table[i].task_fperm =
+			config_template_table[i].task_fperm;
+		template_table[i].control_uid =
+			config_template_table[i].control_uid;
+		template_table[i].control_gid =
+			config_template_table[i].control_gid;
+		template_table[i].control_fperm =
+			config_template_table[i].control_fperm;
+		template_table[i].control_dperm =
+			config_template_table[i].control_dperm;
 	}
 
 	return ret;
@@ -1532,6 +1585,7 @@ int cgroup_config_create_template_group(struct cgroup *cgroup,
 	char buffer[FILENAME_MAX];
 	struct cgroup *aux_cgroup;
 	struct cgroup_controller *cgc;
+	int found;
 
 	/*
 	 * If the user did not ask for cached rules, we must parse the
@@ -1556,6 +1610,7 @@ int cgroup_config_create_template_group(struct cgroup *cgroup,
 		/* for each controller we have to add to cgroup structure
 		 * either template cgroup or empty controller  */
 
+		found = 0;
 		/* look for relevant template - test name x controller pair */
 		for (j = 0; j < template_table_index; j++) {
 
@@ -1576,14 +1631,14 @@ int cgroup_config_create_template_group(struct cgroup *cgroup,
 				/* name and controller match template found */
 				/* variables substituted in template */
 				strncpy(buffer, t_cgroup->name,
-					FILENAME_MAX);
+					FILENAME_MAX-1);
 				strncpy(t_cgroup->name, cgroup->name,
-					FILENAME_MAX);
+					FILENAME_MAX-1);
 
 				ret = cgroup_create_cgroup(t_cgroup, flags);
 
 				strncpy(t_cgroup->name, buffer,
-					FILENAME_MAX);
+					FILENAME_MAX-1);
 				if (ret) {
 					cgroup_dbg("creating group %s, error %d\n",
 					cgroup->name, ret);
@@ -1591,16 +1646,20 @@ int cgroup_config_create_template_group(struct cgroup *cgroup,
 				} else {
 					/* go to new controller */
 					j = template_table_index;
+					found = 1;
 					continue;
 				}
 
 			}
 		}
 
+		if (found == 1)
+			continue;
+
 		/* no template is present for given name x controller pair
 		 * add controller to result cgroup */
 		aux_cgroup = cgroup_new_cgroup(cgroup->name);
-		if (ret) {
+		if (aux_cgroup) {
 			ret = ECGINVAL;
 			fprintf(stderr, "cgroup %s can't be created\n",
 				cgroup->name);
