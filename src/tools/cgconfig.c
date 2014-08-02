@@ -39,7 +39,7 @@ static void usage(char *progname)
 {
 	printf("Usage: %s [-h] [-f mode] [-d mode] [-s mode] "\
 			"[-t <tuid>:<tgid>] [-a <agid>:<auid>] "\
-			"[-l FILE] [-L directory] ...\n", basename(progname));
+			"[-l FILE] [-L DIR] ...\n", basename(progname));
 	printf("Parse and load the specified cgroups configuration file\n");
 	printf("\n");
 	printf("  -h, --help			Display this help\n");
@@ -53,7 +53,7 @@ static void usage(char *progname)
 			" permissions\n");
 	printf("  -f, --fperm=mode		Default group file"\
 			" permissions\n");
-	printf("  -s --tperm=mode		Default tasks file"
+	printf("  -s, --tperm=mode		Default tasks file"
 			" permissions\n");
 	printf("  -t <tuid>:<tgid>		Default owner of the tasks "
 			"file\n");
@@ -83,6 +83,8 @@ int main(int argc, char *argv[])
 	int dirm_change = 0;
 	int filem_change = 0;
 	struct cgroup *default_group = NULL;
+
+	cgroup_set_default_logger(-1);
 
 	if (argc < 2)
 		usage(argv[0]); /* usage() exits */

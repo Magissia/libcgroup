@@ -60,21 +60,21 @@ static void usage(int status, const char *program_name)
 			" try %s -h' for more information.\n",
 			program_name);
 	} else {
-		fprintf(stdout, "Usage: %s [-h] [-s] [-b file] "\
-			"[-w file] [-f output_file] "\
+		fprintf(stdout, "Usage: %s [-h] [-s] [-b FILE] "\
+			"[-w FILE] [-f FILE] "\
 			"[controller] [...]\n", program_name);
 		fprintf(stdout, "Generate the configuration file from "\
 			"the given controllers of control groups\n");
-		fprintf(stdout, "  -b,--blacklist file  Set the blacklist"\
+		fprintf(stdout, "  -b, --blacklist=FILE  Set the blacklist"\
 			" configuration file (default %s)\n", BLACKLIST_CONF);
-		fprintf(stdout, "  -f,--file            Redirect the output"\
+		fprintf(stdout, "  -f, --file=FILE       Redirect the output"\
 			" to output_file\n");
-		fprintf(stdout, "  -h,--help            Display this help\n");
-		fprintf(stdout, "  -s,--silent          Ignore all "\
+		fprintf(stdout, "  -h, --help            Display this help\n");
+		fprintf(stdout, "  -s, --silent          Ignore all "\
 			"warnings\n");
-		fprintf(stdout, "  -t,--strict          Don't show the "\
+		fprintf(stdout, "  -t, --strict          Don't show the "\
 			"variables which are not on the whitelist\n");
-		fprintf(stdout, "  -w,--whitelist file  Set the whitelist"\
+		fprintf(stdout, "  -w, --whitelist=FILE  Set the whitelist"\
 			" configuration file (don't used by default)\n");
 	}
 }
@@ -729,10 +729,12 @@ int main(int argc, char *argv[])
 		case 'b':
 			flags |= FL_BLACK;
 			strncpy(bl_file, optarg, FILENAME_MAX);
+			bl_file[FILENAME_MAX-1] = '\0';
 			break;
 		case 'w':
 			flags |= FL_WHITE;
 			strncpy(wl_file, optarg, FILENAME_MAX);
+			wl_file[FILENAME_MAX-1] = '\0';
 			break;
 		case 't':
 			flags |= FL_STRICT;
