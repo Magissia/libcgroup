@@ -3,6 +3,7 @@ libcgroup (0.41-5) unstable; urgency=low
   * debian/control:
     - Set myself to new maintainer. Closes: #756092
     - Use versioned Breaks instead of Conflicts
+    - Use versioned Replaces instead of unversioned one
     - Update Vcs- fields to collab-maint
     - Drop redundant Section
     - Add Multi-Arch fields
@@ -11,7 +12,8 @@ libcgroup (0.41-5) unstable; urgency=low
   * debian/watch:
     - Create watch file
   * debian/copyright:
-    - Added myself
+    - Add myself
+    - src/pam/pam_cgroup.c also contains LGPL-2.1 code
   * debian/patches (added):
     - 0005-Syntax-fixes-for-man-pages
 
