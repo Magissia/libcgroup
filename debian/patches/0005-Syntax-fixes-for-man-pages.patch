@@ -4,7 +4,6 @@ Subject: Syntax fixes for man pages
 
 Hyphens used as minus signs must be escaped.
 
-Forwarded: yes
 Last-Update: 2014-07-26
 ---
  doc/man/cgclassify.1     |  8 +++---
