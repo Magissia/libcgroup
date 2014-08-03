@@ -12,6 +12,7 @@ libcgroup (0.41-5) unstable; urgency=low
   * debian/watch:
     - Create watch file
   * debian/copyright:
+    - Correct upstream license from LGPL-2.1+ to LGPL-2.1. Closes: #756915
     - Add myself
     - src/pam/pam_cgroup.c also contains LGPL-2.1 code
   * debian/patches (added):
