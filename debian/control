@@ -5,7 +5,6 @@ Maintainer: Christian Kastner <debian@kvr.at>
 Build-Depends:
  debhelper (>= 9),
  dh-autoreconf,
- autotools-dev,
  bison,
  flex,
  libpam-dev,
