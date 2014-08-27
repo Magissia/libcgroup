@@ -1,12 +1,27 @@
 #!/usr/bin/make -f
+# -*- makefile -*-
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
 
 DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+
 
 %:
 	dh ${@} --parallel --with autoreconf
 
+
 override_dh_auto_configure:
-	dh_auto_configure -- --libdir /lib/$(DEB_HOST_MULTIARCH) --disable-silent-rules --enable-opaque-hierarchy="name=systemd"
+	dh_auto_configure -- \
+			--libdir /lib/$(DEB_HOST_MULTIARCH) \
+			--disable-silent-rules \
+			--enable-opaque-hierarchy="name=systemd"
+
+
+override_dh_auto_test:
+	# disabled
+
 
 override_dh_auto_install:
 	dh_auto_install
@@ -18,20 +33,16 @@ override_dh_auto_install:
 
 	# libpam-cgroup
 	mv debian/tmp/lib/$(DEB_HOST_MULTIARCH)/security/pam_cgroup.so.*.*.* debian/tmp/lib/$(DEB_HOST_MULTIARCH)/security/pam_cgroup.so
-	rm -f debian/tmp/lib/$(DEB_HOST_MULTIARCH)/security/pam_cgroup.so.*
 
 	# removing unused files
 	rm -f debian/tmp/lib/$(DEB_HOST_MULTIARCH)/*.la
 	rm -f debian/tmp/lib/$(DEB_HOST_MULTIARCH)/security/*.la
+	rm -f debian/tmp/lib/$(DEB_HOST_MULTIARCH)/security/pam_cgroup.so.*
 
-override_dh_auto_test:
-	# disabled
-
-override_dh_compress:
-	dh_compress -Xexamples
 
 override_dh_install:
 	dh_install --fail-missing
+
 
 override_dh_link:
 	# correcting symlink target
@@ -39,8 +50,14 @@ override_dh_link:
 
 	dh_link --remaining-packages
 
-override_dh_makeshlibs:
-	dh_makeshlibs -Xpam_cgroup.so
+
+override_dh_compress:
+	dh_compress -Xexamples
+
 
 override_dh_strip:
 	dh_strip --dbg-package=libcgroup-dbg
+
+
+override_dh_makeshlibs:
+	dh_makeshlibs -Xpam_cgroup.so
