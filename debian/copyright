@@ -11,7 +11,7 @@ License: LGPL-2.1
 Files: src/pam/pam_cgroup.c
 Copyright: 1996-1997 Cristian Gafton <gafton@redhat.com>
            2008 Vivek Goyal <vgoyal@redhat.com>
-License: BSD or GPL-2, and LGPL-2.1
+License: BSD-3-clause or GPL-2, and LGPL-2.1
 
 Files: debian/*
 Copyright: 2009 Jon Bernard <jbernard@debian.org>
@@ -19,7 +19,7 @@ Copyright: 2009 Jon Bernard <jbernard@debian.org>
 	   2014 Christian Kastner <debian@kvr.at>
 License: GPL-3
 
-License: BSD
+License: BSD-3-clause
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions
  are met:
