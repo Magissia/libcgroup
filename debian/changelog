@@ -1,3 +1,19 @@
+libcgroup (0.41-6) unstable; urgency=medium
+
+  * debian/control:
+    - Drop autotools-dev build dependency, dh-autoreconf is sufficient
+  * debian/source/options:
+    - Drop, as xz compression is now the default
+  * debian/rules:
+    - Drop override for dh_builddeb, xz compression is now the default
+    - Disable autoconf silent rules. The verbose output both generally useful
+      and also specifically for build log scanning (hardeining flags, etc.)
+    - Simplify the installation stage through refactoring
+  * debian/copyright:
+    - Fix license shortname (BSD-3-clause, not BSD)
+
+ -- Christian Kastner <debian@kvr.at>  Thu, 28 Aug 2014 13:09:41 -0700
+
 libcgroup (0.41-5) unstable; urgency=low
 
   * debian/control:
