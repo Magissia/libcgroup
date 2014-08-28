@@ -23,32 +23,38 @@ override_dh_auto_test:
 	# disabled
 
 
+override_dh_installdirs:
+	dh_installdirs
+
+	# While the PAM module and the library are in /lib, according to the
+	# FHS, development files must go into usr/lib/<triplet>.
+	mkdir -p debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)
+
+
 override_dh_auto_install:
 	dh_auto_install
 
-	# libcgroup-dev
-	mkdir -p debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)
-	mv debian/tmp/lib/$(DEB_HOST_MULTIARCH)/*.so debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)
-	mv debian/tmp/lib/$(DEB_HOST_MULTIARCH)/pkgconfig debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)
+	# libcgroup-dev:
+	#   Move the development files from lib/ to usr/lib. The pkgconfig files
+	#   can be moved as-is, but we need to redirect the .so symlink. dh_link
+	#   will later correct this link for us (from relative to absolute).
+	cd debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH) && \
+		mv    ../../../lib/$(DEB_HOST_MULTIARCH)/pkgconfig . && \
+		ln -s ../../../lib/$(DEB_HOST_MULTIARCH)/libcgroup.so.*.*.* libcgroup.so
 
-	# libpam-cgroup
-	mv debian/tmp/lib/$(DEB_HOST_MULTIARCH)/security/pam_cgroup.so.*.*.* debian/tmp/lib/$(DEB_HOST_MULTIARCH)/security/pam_cgroup.so
+	# libpam-cgroup:
+	#   Rename the PAM module to pam_cgroup.so
+	cd debian/tmp/lib/$(DEB_HOST_MULTIARCH)/security && \
+		rm -f pam_cgroup.so && \
+		mv pam_cgroup.so.*.*.* pam_cgroup.so
 
-	# removing unused files
-	rm -f debian/tmp/lib/$(DEB_HOST_MULTIARCH)/*.la
-	rm -f debian/tmp/lib/$(DEB_HOST_MULTIARCH)/security/*.la
-	rm -f debian/tmp/lib/$(DEB_HOST_MULTIARCH)/security/pam_cgroup.so.*
+	# Remove unwanted/unused files (because of --fail-missing)
+	cd debian/tmp/lib/$(DEB_HOST_MULTIARCH) && \
+		rm -f *.so security/pam_cgroup.so.* *.la security/*.la
 
 
 override_dh_install:
 	dh_install --fail-missing
-
-
-override_dh_link:
-	# correcting symlink target
-	dh_link -plibcgroup-dev lib/$(DEB_HOST_MULTIARCH)/$$(basename $$(readlink debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/libcgroup.so)) usr/lib/$(DEB_HOST_MULTIARCH)/libcgroup.so
-
-	dh_link --remaining-packages
 
 
 override_dh_compress:
