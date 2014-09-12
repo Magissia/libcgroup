@@ -20,7 +20,7 @@ override_dh_auto_configure:
 
 
 override_dh_auto_test:
-	# disabled
+	# Disabled. Requires root and also modifies the testbed.
 
 
 override_dh_installdirs:
