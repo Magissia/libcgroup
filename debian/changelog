@@ -1,6 +1,7 @@
 libcgroup (0.41-6) unstable; urgency=medium
 
   * debian/control:
+    - Bump Standards-Version to 3.9.6 (no changes needed)
     - Drop autotools-dev build dependency, dh-autoreconf is sufficient
   * debian/source/options:
     - Drop, as xz compression is now the default
