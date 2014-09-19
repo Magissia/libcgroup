@@ -69,7 +69,7 @@ Description: control and monitor control groups (debug)
  libcgroup allows one to manipulate, control, administrate and monitor cgroups
  and the associated controllers.
  .
- This package contains the debuging symbols.
+ This package contains the debugging symbols.
 
 Package: libcgroup-dev
 Section: libdevel
