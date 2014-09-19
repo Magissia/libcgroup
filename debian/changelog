@@ -3,12 +3,13 @@ libcgroup (0.41-6) unstable; urgency=medium
   * debian/control:
     - Bump Standards-Version to 3.9.6 (no changes needed)
     - Drop autotools-dev build dependency, dh-autoreconf is sufficient
+    - Fix typo in libcgroup-dbg package description
   * debian/source/options:
     - Drop, as xz compression is now the default
   * debian/rules:
     - Drop override for dh_builddeb, xz compression is now the default
     - Disable autoconf silent rules. The verbose output both generally useful
-      and also specifically for build log scanning (hardeining flags, etc.)
+      and also specifically for build log scanning (hardening flags, etc.)
     - Simplify the installation stage through refactoring
   * debian/copyright:
     - Fix license shortname (BSD-3-clause, not BSD)
