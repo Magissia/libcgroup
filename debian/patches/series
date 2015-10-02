@@ -1,6 +1,6 @@
-0001-cgroup-directory.patch
-0002-initscript-exit.patch
-0003-template-doc.patch
-0004-initscript-return.patch
-0005-Syntax-fixes-for-man-pages.patch
-0006-pam_cgroup-Revert-broken-cache-usage.patch
+cgroup-directory.patch
+initscript-exit.patch
+template-doc.patch
+initscript-return.patch
+Syntax-fixes-for-man-pages.patch
+pam_cgroup-Revert-broken-cache-usage.patch
