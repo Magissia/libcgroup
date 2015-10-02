@@ -3,10 +3,29 @@ Date: Thu, 19 Sep 2013 08:33:12 +0200
 Subject: Updating cgroup directory
 
 Last-Update: 2014-07-26
+---
+ README                  |   2 +-
+ doc/man/cgconfig.conf.5 | 124 ++++++++++++++++++++++++------------------------
+ samples/cgconfig.conf   |   4 +-
+ 3 files changed, 65 insertions(+), 65 deletions(-)
 
-diff -Naurp libcgroup.orig/doc/man/cgconfig.conf.5 libcgroup/doc/man/cgconfig.conf.5
---- libcgroup.orig/doc/man/cgconfig.conf.5
-+++ libcgroup/doc/man/cgconfig.conf.5
+diff --git a/README b/README
+index 54e0f7b..d7b7bc0 100644
+--- a/README
++++ b/README
+@@ -16,7 +16,7 @@ this file will be managed by root.
+ Basic idea is that to begin with provide facility to implement rules
+ based on uid and gid. So a hierarchy might look like as follows.
+ 
+-                        /mnt/cgroup
++                        /sys/fs/cgroup
+                         |       |
+                       gid1      gid2
+                      |   |
+diff --git a/doc/man/cgconfig.conf.5 b/doc/man/cgconfig.conf.5
+index be80e4e..5ebd879 100644
+--- a/doc/man/cgconfig.conf.5
++++ b/doc/man/cgconfig.conf.5
 @@ -262,8 +262,8 @@ The configuration file:
  .nf
  mount {
@@ -18,7 +37,7 @@ diff -Naurp libcgroup.orig/doc/man/cgconfig.conf.5 libcgroup/doc/man/cgconfig.co
  .RE
  }
  .fi
-@@ -274,8 +274,8 @@ inside. It corresponds to the following
+@@ -274,8 +274,8 @@ inside. It corresponds to the following operations:
  .LP
  .RS
  .nf
@@ -74,7 +93,7 @@ diff -Naurp libcgroup.orig/doc/man/cgconfig.conf.5 libcgroup/doc/man/cgconfig.co
  .RE
  }
  
-@@ -426,18 +426,18 @@ which are little bit trickier to emulate
+@@ -426,18 +426,18 @@ which are little bit trickier to emulate via chmod):
  .LP
  .RS
  .nf
@@ -101,7 +120,7 @@ diff -Naurp libcgroup.orig/doc/man/cgconfig.conf.5 libcgroup/doc/man/cgconfig.co
   # admin.dperm = 755:
   # drwxr-xr-x. 2 root webmaster 0 Jun 16 11:51 .
   #
-@@ -456,13 +456,13 @@ echo 1000 > /mnt/cgroups/cpu/daemons/www
+@@ -456,13 +456,13 @@ echo 1000 > /mnt/cgroups/cpu/daemons/www/cpu.shares
   # -rw-rw----. 1 root webmaster 0 Jun 16 11:51 tasks
  
  
@@ -131,7 +150,7 @@ diff -Naurp libcgroup.orig/doc/man/cgconfig.conf.5 libcgroup/doc/man/cgconfig.co
  .RE
  }
  
-@@ -530,13 +530,13 @@ It corresponds to the following operatio
+@@ -530,13 +530,13 @@ It corresponds to the following operations:
  .LP
  .RS
  .nf
@@ -162,7 +181,7 @@ diff -Naurp libcgroup.orig/doc/man/cgconfig.conf.5 libcgroup/doc/man/cgconfig.co
  .RE
  }
  
-@@ -597,17 +597,17 @@ It corresponds to the following operatio
+@@ -597,17 +597,17 @@ It corresponds to the following operations:
  .LP
  .RS
  .nf
@@ -202,7 +221,7 @@ diff -Naurp libcgroup.orig/doc/man/cgconfig.conf.5 libcgroup/doc/man/cgconfig.co
  .RE
  }
  
-@@ -696,15 +696,15 @@ It corresponds to the following operatio
+@@ -696,15 +696,15 @@ It corresponds to the following operations:
  .LP
  .RS
  .nf
@@ -247,21 +266,10 @@ diff -Naurp libcgroup.orig/doc/man/cgconfig.conf.5 libcgroup/doc/man/cgconfig.co
  .fi
  .RE
  
-diff -Naurp libcgroup.orig/README libcgroup/README
---- libcgroup.orig/README
-+++ libcgroup/README
-@@ -16,7 +16,7 @@ this file will be managed by root.
- Basic idea is that to begin with provide facility to implement rules
- based on uid and gid. So a hierarchy might look like as follows.
- 
--                        /mnt/cgroup
-+                        /sys/fs/cgroup
-                         |       |
-                       gid1      gid2
-                      |   |
-diff -Naurp libcgroup.orig/samples/cgconfig.conf libcgroup/samples/cgconfig.conf
---- libcgroup.orig/samples/cgconfig.conf
-+++ libcgroup/samples/cgconfig.conf
+diff --git a/samples/cgconfig.conf b/samples/cgconfig.conf
+index de77e4b..5e668a8 100644
+--- a/samples/cgconfig.conf
++++ b/samples/cgconfig.conf
 @@ -43,6 +43,6 @@
  #}
  #

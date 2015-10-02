@@ -3,10 +3,15 @@ Date: Thu, 19 Sep 2013 08:33:12 +0200
 Subject: Correcting sanity checks in example initscripts (Closes: #704926).
 
 Last-Update: 2014-07-26
+---
+ scripts/init.d/cgconfig.in | 3 +++
+ scripts/init.d/cgred.in    | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)
 
-diff -Naurp libcgroup.orig/scripts/init.d/cgconfig.in libcgroup/scripts/init.d/cgconfig.in
---- libcgroup.orig/scripts/init.d/cgconfig.in
-+++ libcgroup/scripts/init.d/cgconfig.in
+diff --git a/scripts/init.d/cgconfig.in b/scripts/init.d/cgconfig.in
+index f299d0f..d293c62 100644
+--- a/scripts/init.d/cgconfig.in
++++ b/scripts/init.d/cgconfig.in
 @@ -36,6 +36,9 @@ CONFIG_FILE=/etc/cgconfig.conf
  servicename=cgconfig
  lockfile=/var/lock/subsys/$servicename
@@ -17,9 +22,10 @@ diff -Naurp libcgroup.orig/scripts/init.d/cgconfig.in libcgroup/scripts/init.d/c
  #
  # Source LSB routines
  #
-diff -Naurp libcgroup.orig/scripts/init.d/cgred.in libcgroup/scripts/init.d/cgred.in
---- libcgroup.orig/scripts/init.d/cgred.in
-+++ libcgroup/scripts/init.d/cgred.in
+diff --git a/scripts/init.d/cgred.in b/scripts/init.d/cgred.in
+index 247ec61..c13920d 100644
+--- a/scripts/init.d/cgred.in
++++ b/scripts/init.d/cgred.in
 @@ -37,7 +37,7 @@ CGRED_BIN=$sbindir/cgrulesengd
  CGRED_CONF=/etc/cgrules.conf
  
