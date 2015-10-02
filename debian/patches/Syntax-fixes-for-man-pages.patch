@@ -1,10 +1,10 @@
-From: Christian Kastner <debian@kvr.at>
+From: Christian Kastner <ckk@debian.org>
 Date: Sat, 26 Jul 2014 14:31:39 +0200
 Subject: Syntax fixes for man pages
 
 Hyphens used as minus signs must be escaped.
 
-Last-Update: 2014-07-26
+Last-Update: 2015-10-02
 ---
  doc/man/cgclassify.1     |  8 +++---
  doc/man/cgclear.1        | 16 ++++++------
