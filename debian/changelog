@@ -1,3 +1,19 @@
+libcgroup (0.41-7) unstable; urgency=medium
+
+  * Add package-specific gbp.conf
+  * d/control:
+    - Switch Maintainer email to my @debian.org address
+  * d/patches:
+    - Drop patch numbers from .patch filenames
+  * d/patches (added):
+    - pam_cgroup-Revert-broken-cache-usage.patch
+      Revert the most recent upstream commit to pam_cgroup which renders it
+      useless. Thanks, Reco, for the report and analysis! Closes: #788244
+  * d/copyright:
+    - Bump copyright years
+
+ -- Christian Kastner <ckk@debian.org>  Fri, 02 Oct 2015 15:05:27 +0200
+
 libcgroup (0.41-6) unstable; urgency=medium
 
   * debian/control:
