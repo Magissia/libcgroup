@@ -1,3 +1,18 @@
+libcgroup (0.41-8) unstable; urgency=medium
+
+  * Drop package libcgroup-dbg in favor of automatic dbgsym packages.
+    As per https://lists.debian.org/debian-devel/2015/12/msg00262.html
+  * d/control:
+    - Bump Standards-Version to 3.9.8 (no changes needed)
+    - Switch Vcs-Browser from gitweb to cgit
+    - Switch to secure URIs in Vcs-* fields
+  * d/copyright:
+    - Bump copyright years
+  * d/rules:
+    - Add hardening=+all to DEB_BUILD_MAINT_OPTIONS
+
+ -- Christian Kastner <ckk@debian.org>  Sun, 24 Apr 2016 18:50:29 +0200
+
 libcgroup (0.41-7) unstable; urgency=medium
 
   * Add package-specific gbp.conf
