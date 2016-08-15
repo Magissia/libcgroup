@@ -1,7 +1,7 @@
 Source: libcgroup
 Priority: optional
 Section: libs
-Maintainer: Christian Kastner <ckk@debian.org>
+Maintainer: Magissia <packages@magissia.com>
 Build-Depends:
     debhelper (>= 9),
     dh-autoreconf,
