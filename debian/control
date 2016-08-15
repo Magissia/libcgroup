@@ -98,3 +98,13 @@ Description: control and monitor control groups (transitional package)
  .
  This package can be purged at anytime once the cgroup-bin package has been
  installed.
+
+Package: cgroupe-services
+Section: admin
+Priority: optional
+Architecture: all
+Depends:
+    ${misc:Depends},
+    ${shlibs:Depends},
+	cgroup-tools,
+Description: systemd service files to load cgrules.conf and cgconfig.conf
