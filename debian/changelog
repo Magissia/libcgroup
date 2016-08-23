@@ -1,3 +1,8 @@
+libcgroup (0.41-8~ArchPhénix) unstable; urgency=low
+  * Add systemd service file
+
+  -- Magissia <packages@magissia.com> Tue, 23 Aug 2016 19:06:02 +0200
+
 libcgroup (0.41-8) unstable; urgency=medium
 
   * Drop package libcgroup-dbg in favor of automatic dbgsym packages.
