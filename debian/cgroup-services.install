@@ -1,4 +1,3 @@
-cgconfig.service	/usr/lib/systemd/system/
-cgrules.service		/usr/lib/systemd/system/
-samples/cgconfig.conf	/etc/cgconfig.conf
-samples/cgred.conf	/etc/cgred.conf
+cgconfig.service	usr/lib/systemd/system/
+cgrules.service		usr/lib/systemd/system/
+samples/*.conf	etc/
